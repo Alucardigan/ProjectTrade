@@ -1,0 +1,5 @@
+Seperation of concerns: 
+- Seperated User table into 3 tables: User, CashBalance, Portfolio 
+- User and Portfolio are functionally different and thus should be normalised 
+- User's cash balance was seperated from them because row updates are expensive for large rows and therefore 
+seperating high frequency updates into a seperate table makes more sense
