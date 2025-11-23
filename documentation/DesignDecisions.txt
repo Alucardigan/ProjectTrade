@@ -3,3 +3,44 @@ Seperation of concerns:
 - User and Portfolio are functionally different and thus should be normalised 
 - User's cash balance was seperated from them because row updates are expensive for large rows and therefore 
 seperating high frequency updates into a seperate table makes more sense
+
+Order Flow:
+
+    Client -> POST /orders { "user_id": "123", "ticker": "AAPL", "quantity": 10, "type": "market" }
+
+    OMS:
+
+        Calls Market Data Service -> gets current AAPL price: $150.
+
+        Calculates reservation: 10 * $150 * 1.05 = $1575.
+
+        Calls User Service -> reserve_funds(user_123, $1575).
+
+        User Service updates PostgreSQL: available_cash = available_cash - 1575.
+
+        OMS saves order in PostgreSQL as status: PENDING.
+
+        OMS publishes to Redis Stream: { "order_id": "abc", "user_id": "123", "ticker": "AAPL", "qty": 10, "type": "market" }.
+
+    Trading Engine:
+
+        Polls Redis Stream, reads the message.
+
+        Fetches latest AAPL price from Redis Cache: $152.
+
+        Calculates cost: 10 * $152 = $1520.
+
+        Final Check: $1520 <= $1575 (reserved amount) -> OK.
+
+        Calls User Service -> execute_trade(user_123, AAPL, +10 shares, -$1520 cash).
+
+        User Service updates PostgreSQL: cash_balance = cash_balance - 1520, available_cash = available_cash + 1575 - 1520 (releases hold, deducts actual cost).
+
+        Trading Engine updates order in PostgreSQL to status: FILLED.
+
+The database holds the state. The queue is just a message pipe.
+
+Error handling: 
+Layered Error handling approach 
+Each service has distinct errors that it can throw out. 
+These layers can be layered on top of each other like stack trace 

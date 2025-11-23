@@ -1,0 +1,8 @@
+Adding some documentation to help me remember some SQL commands: 
+
+Creating a migration file: 
+cargo sqlx migrate add migration_name
+cargo sqlx migrate run
+
+Setting database url: 
+export DATABASE_URL=postgres://myuser:password@localhost/mydb
