@@ -1,12 +1,16 @@
-use sqlx::{PgPool, Executor};
+use backend::services::user_service::UserService;
+use sqlx::PgPool;
 use uuid::Uuid;
-use services::user_service::UserService;
 
 #[tokio::test]
 async fn test_create_user() {
-    // Setup: create a test database pool (use a test DB or transaction)
+    /*
+    Setup: create a test database pool (use a test DB or transaction)
+    */
     let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set for tests");
-    let pool = PgPool::connect(&db_url).await.expect("Failed to connect to DB");
+    let pool = PgPool::connect(&db_url)
+        .await
+        .expect("Failed to connect to DB");
     let service = UserService::new(pool.clone());
 
     // Generate test data
@@ -16,11 +20,14 @@ async fn test_create_user() {
     let password_hash = "testhash";
 
     // Run the function
-    let result = service.create_user(user_id, &username, &email, password_hash).await;
+    let result = service
+        .create_user(user_id, &username, &email, password_hash)
+        .await;
     assert!(result.is_ok());
 
     // Cleanup: remove the test user
-    sqlx::query!("DELETE FROM users WHERE id = $1", user_id)
+    sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(user_id)
         .execute(&pool)
         .await
         .unwrap();
@@ -29,7 +36,9 @@ async fn test_create_user() {
 #[tokio::test]
 async fn test_register_user() {
     let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set for tests");
-    let pool = PgPool::connect(&db_url).await.expect("Failed to connect to DB");
+    let pool = PgPool::connect(&db_url)
+        .await
+        .expect("Failed to connect to DB");
     let service = UserService::new(pool.clone());
 
     let username = format!("reguser_{}", Uuid::new_v4());
@@ -40,7 +49,8 @@ async fn test_register_user() {
     assert!(result.is_ok());
 
     // Cleanup: remove the test user
-    sqlx::query!("DELETE FROM users WHERE username = $1", username)
+    sqlx::query("DELETE FROM users WHERE username = $1")
+        .bind(username)
         .execute(&pool)
         .await
         .unwrap();

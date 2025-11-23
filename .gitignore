@@ -1,0 +1,5 @@
+/backend/target
+.env
+vantageAPIKey
+/backend/dummyData
+/backend/.sqlx

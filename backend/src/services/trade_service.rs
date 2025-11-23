@@ -1,6 +1,4 @@
-use crate::models::user::{User};
-
-pub async fn buy_trade(user_id:String,symbol:String, ){
+#[allow(dead_code)]
+pub async fn buy_trade(_user_id: String, _symbol: String) {
     //get the user via id
-    
 }
