@@ -12,6 +12,8 @@ pub enum UserError {
     DatabaseError(#[from] sqlx::Error),
     #[error("Insufficient funds")]
     InsufficientFunds,
+    #[error("Insufficient holdings")]
+    InsufficientHoldings,
 }
 
 // trade_service.rs

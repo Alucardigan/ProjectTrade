@@ -1,6 +1,7 @@
 use crate::models::errors::trade_error::TradeError;
 use crate::models::errors::user_error::UserError;
 use sqlx::postgres::types::PgMoney;
+use sqlx::types::BigDecimal;
 use sqlx::PgPool;
 use sqlx::Row;
 use uuid::Uuid;
@@ -99,5 +100,21 @@ impl UserService {
         } else {
             Err(TradeError::UserError(UserError::InsufficientFunds))
         }
+    }
+    pub async fn check_holdings(
+        &self,
+        user_id: Uuid,
+        symbol: &str,
+    ) -> Result<BigDecimal, TradeError> {
+        let rec = sqlx::query("SELECT * FROM portfolio WHERE uid = $1 AND ticker = $2")
+            .bind(user_id)
+            .bind(symbol)
+            .fetch_one(&self.user_db)
+            .await
+            .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
+        if rec.is_empty() {
+            return Err(TradeError::UserError(UserError::InsufficientHoldings));
+        }
+        Ok(rec.get("quantity"))
     }
 }

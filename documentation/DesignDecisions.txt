@@ -38,6 +38,38 @@ Order Flow:
 
         Trading Engine updates order in PostgreSQL to status: FILLED.
 
+Sell Order Flow:
+
+    Client -> POST /orders { "user_id": "123", "ticker": "AAPL", "quantity": 5, "type": "market", "side": "sell" }
+
+    OMS:
+
+        Calls User Service -> validate_holdings(user_123, AAPL, 5).
+
+        User Service checks PostgreSQL holdings table: user has >= 5 shares of AAPL.
+
+        OMS saves sell order in PostgreSQL as status: PENDING.
+
+        OMS publishes to Redis Stream: { "order_id": "def", "user_id": "123", "ticker": "AAPL", "qty": 5, "type": "market", "side": "sell" }.
+
+    Trading Engine:
+
+        Polls Redis Stream, reads the message.
+
+        Fetches latest AAPL price from Redis Cache: $152.
+
+        Calculates proceeds: 5 * $152 = $760.
+
+        Calls User Service -> execute_trade(user_123, AAPL, -5 shares, +$760 cash).
+
+        User Service updates PostgreSQL:
+
+            holdings: Reduces AAPL quantity by 5 (or deletes row if zero).
+
+            cash_balance = cash_balance + 760.
+
+        Trading Engine updates order in PostgreSQL to status: FILLED.
+
 The database holds the state. The queue is just a message pipe.
 
 Error handling: 

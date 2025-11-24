@@ -16,6 +16,7 @@ uuid = { version = "1.18.1", features = ["v4"]}
 anyhow = "1.0"
 num-traits = "0.2.19"
 thiserror = "2.0.17"
+strum = { version = "0.26", features = ["derive"] }
 [lib]
 name = "backend"
 path = "src/lib.rs"
