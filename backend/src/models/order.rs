@@ -21,7 +21,7 @@ pub enum OrderType {
     Sell,
 }
 
-#[derive(Debug, Clone, Display, EnumString)]
+#[derive(Debug, Clone, Display, EnumString, PartialEq)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum OrderStatus {
     Pending,

@@ -2,11 +2,14 @@ use std::str::FromStr;
 
 use crate::{
     models::{
-        errors::trade_error::TradeError,
-        errors::user_error::UserError,
+        errors::{trade_error::TradeError, user_error::UserError},
         order::{Order, OrderStatus, OrderType},
     },
-    services::{ticker_service::TickerService, user_service::UserService},
+    services::{
+        account_management_service::AccountManagementService,
+        portfolio_management_service::PortfolioManagementService, ticker_service::TickerService,
+        user_service::UserService,
+    },
 };
 use num_traits::ToPrimitive;
 use sqlx::types::BigDecimal;
@@ -17,16 +20,26 @@ use uuid::Uuid;
 pub struct OrderManagementService {
     pub db: PgPool,
     pub user_service: UserService,
-    pub trade_service: TickerService, // You could add a queue here, or use a DB table as the queue
+    pub trade_service: TickerService,
+    pub account_management_service: AccountManagementService,
+    pub portfolio_management_service: PortfolioManagementService,
 }
 
 #[allow(dead_code)]
 impl OrderManagementService {
-    pub fn new(db: PgPool, user_service: UserService, trade_service: TickerService) -> Self {
+    pub fn new(
+        db: PgPool,
+        user_service: UserService,
+        trade_service: TickerService,
+        account_management_service: AccountManagementService,
+        portfolio_management_service: PortfolioManagementService,
+    ) -> Self {
         Self {
             db,
             user_service,
             trade_service,
+            account_management_service,
+            portfolio_management_service,
         }
     }
 
@@ -41,7 +54,7 @@ impl OrderManagementService {
     ) -> Result<Order, TradeError> {
         // TODO : Add atomicity to this function
         let order_id = Uuid::new_v4();
-        let status = OrderStatus::Reserved;
+        let status = OrderStatus::Pending;
         if quantity < BigDecimal::from(0) {
             return Err(TradeError::InvalidAmount);
         }
@@ -51,13 +64,16 @@ impl OrderManagementService {
         match order_type {
             OrderType::Buy => {
                 // Reserve funds
-                self.user_service
+                self.account_management_service
                     .reserve_funds(user_id, total_purchase_price)
                     .await?;
             }
             OrderType::Sell => {
                 // Check holdings
-                let holdings = self.user_service.check_holdings(user_id, symbol).await?;
+                let holdings = self
+                    .portfolio_management_service
+                    .check_holdings(user_id, symbol)
+                    .await?;
                 if holdings < quantity {
                     return Err(TradeError::UserError(UserError::InsufficientHoldings));
                 }

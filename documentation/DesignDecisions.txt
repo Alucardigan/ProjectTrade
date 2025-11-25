@@ -76,3 +76,6 @@ Error handling:
 Layered Error handling approach 
 Each service has distinct errors that it can throw out. 
 These layers can be layered on top of each other like stack trace 
+
+Adding a accont management service and portfolio management service to remove functionally from user service and better adhere to single responsibility principles 
+I found the user service implementation too long and therefore am refactoring it down.  Orchestration between these services happen mostly in trade service and OMS services. 
