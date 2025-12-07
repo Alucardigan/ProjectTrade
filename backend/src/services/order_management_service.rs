@@ -140,6 +140,7 @@ impl OrderManagementService {
             .map_err(|e| TradeError::DatabaseError(e))?;
         Ok(())
     }
+
     pub async fn get_orders(&self, user_id: Uuid) -> Result<Vec<Order>, TradeError> {
         let rec = sqlx::query("SELECT * FROM orders WHERE user_id = $1")
             .bind(user_id)
@@ -164,6 +165,7 @@ impl OrderManagementService {
             .collect::<Result<Vec<Order>, TradeError>>()?;
         Ok(orders)
     }
+
     pub async fn get_order(&self, order_id: Uuid) -> Result<Order, TradeError> {
         let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1")
             .bind(order_id)

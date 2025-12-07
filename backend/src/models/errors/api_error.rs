@@ -24,7 +24,7 @@ impl IntoResponse for ApiError {
             ApiError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             ApiError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             ApiError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
-            ApiError::InternalServerError(msg) => (
+            ApiError::InternalServerError(_msg) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error".to_string(),
             ),

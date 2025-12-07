@@ -1,5 +1,6 @@
 use alpha_vantage::ApiClient;
 use sqlx::PgPool;
+use sqlx::Row;
 
 use crate::models::stock_ticker::Ticker;
 
@@ -19,21 +20,18 @@ impl TickerService {
             mock_db: mock_db,
         }
     }
+
     pub async fn search_symbol(&self, symbol: &str) -> Ticker {
         if self.api_client.get_api_key() == "mock" {
-            let prices = sqlx::query!(
-                "SELECT close FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 5",
-                symbol
+            let prices = sqlx::query(
+                "SELECT close FROM stock_prices WHERE symbol = $1 ORDER BY time DESC LIMIT 5",
             )
+            .bind(symbol)
             .fetch_all(&self.mock_db)
             .await
             .map(|rows| {
-                rows.into_iter()
-                    .map(|r| {
-                        r.close
-                            .and_then(|bd| num_traits::ToPrimitive::to_f64(&bd))
-                            .unwrap_or(0.0)
-                    })
+                rows.iter()
+                    .map(|row| row.try_get("close").unwrap_or_default())
                     .collect::<Vec<f64>>()
             })
             .unwrap_or_else(|_| vec![120.0, 121.0, 122.0, 123.0, 124.0]);
@@ -72,6 +70,7 @@ impl TickerService {
             trend: stock_time_prices,
         };
     }
+
     pub async fn search_multiple_symbols(&self, symbols: Vec<&str>) {
         let mut tickers: Vec<Ticker> = vec![];
         for symbol in symbols {

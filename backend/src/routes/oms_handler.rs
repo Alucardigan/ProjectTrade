@@ -10,6 +10,15 @@ use bigdecimal::BigDecimal;
 use serde::Deserialize;
 use uuid::Uuid;
 
+//request and response bodies
+#[derive(Deserialize)]
+pub struct PlaceOrderRequest {
+    pub symbol: String,
+    pub quantity: BigDecimal,
+    pub order_type: OrderType, // Assuming OrderType also implements Deserialize
+    pub price_buffer: f64,
+}
+
 //getters
 pub async fn get_order_status(
     State(app_state): State<AppState>,
@@ -62,10 +71,13 @@ pub async fn place_order(
     Ok(Json(order))
 }
 
-#[derive(Deserialize)]
-pub struct PlaceOrderRequest {
-    pub symbol: String,
-    pub quantity: BigDecimal,
-    pub order_type: OrderType, // Assuming OrderType also implements Deserialize
-    pub price_buffer: f64,
+pub async fn cancel_order(
+    State(app_state): State<AppState>,
+    Path(order_id): Path<Uuid>,
+) -> Result<(), ApiError> {
+    app_state
+        .order_management_service
+        .cancel_order(order_id)
+        .await?;
+    Ok(())
 }

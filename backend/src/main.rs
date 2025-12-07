@@ -1,10 +1,7 @@
-use backend::models;
-use backend::routes;
-use backend::services;
-
 use anyhow::Result;
 use axum::{routing::get, Router};
 use backend::app_state::AppState;
+use backend::routes;
 use dotenv::dotenv;
 use routes::ticker_handler::get_ticker;
 use sqlx::PgPool;

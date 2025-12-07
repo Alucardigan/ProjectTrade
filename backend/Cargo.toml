@@ -18,6 +18,8 @@ num-traits = "0.2.19"
 thiserror = "2.0.17"
 strum = { version = "0.26", features = ["derive"] }
 bigdecimal = { version = "0.3", features = ["serde"] }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["fs", "trace"] }
 [lib]
 name = "backend"
 path = "src/lib.rs"

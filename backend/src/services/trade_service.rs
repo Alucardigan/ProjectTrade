@@ -37,6 +37,7 @@ impl TradeService {
             portfolio_management_service,
         }
     }
+
     pub async fn get_order(&self, order_id: Uuid) -> Result<Order, TradeError> {
         let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1")
             .bind(order_id)
@@ -58,6 +59,7 @@ impl TradeService {
                 .map_err(|_| TradeError::InvalidOrderStatus)?,
         })
     }
+
     pub async fn execute_order(&self, order_id: Uuid) -> Result<(), TradeError> {
         let order = self.get_order(order_id).await?;
         //validation checks

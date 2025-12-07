@@ -7,18 +7,31 @@ use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AccountManagementService {
-    pub user_db: PgPool,
+    pub db: PgPool,
 }
 impl AccountManagementService {
-    pub fn new(user_db: PgPool) -> Self {
-        Self { user_db }
+    pub fn new(db: PgPool) -> Self {
+        Self { db }
     }
     pub async fn get_user_balance(&self, user_id: Uuid) -> Result<(PgMoney, PgMoney), UserError> {
         let rec = sqlx::query("SELECT balance,available_balance FROM user_balance WHERE uid = $1")
             .bind(user_id)
-            .fetch_one(&self.user_db)
+            .fetch_one(&self.db)
             .await?;
         Ok((rec.get("balance"), rec.get("available_balance")))
+    }
+
+    pub async fn create_user_balance_account(&self, user_id: Uuid) -> Result<(), UserError> {
+        let starting_amount: i64 = 100000;
+        sqlx::query(
+            "INSERT INTO user_balance(uid, balance, available_balance) VALUES ($1, $2, $3)",
+        )
+        .bind(user_id)
+        .bind(PgMoney(starting_amount))
+        .bind(PgMoney(starting_amount))
+        .execute(&self.db)
+        .await?;
+        Ok(())
     }
 
     pub async fn reserve_funds(
@@ -35,7 +48,7 @@ impl AccountManagementService {
         )
         .bind(PgMoney(reserve_cents))
         .bind(user_id)
-        .execute(&self.user_db)
+        .execute(&self.db)
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?
         .rows_affected();
@@ -45,6 +58,7 @@ impl AccountManagementService {
             Err(TradeError::UserError(UserError::InsufficientFunds))
         }
     }
+
     pub async fn add_user_balance(&self, user_id: Uuid, amount: f64) -> Result<(), TradeError> {
         let add_cents = (amount * 100.0) as i64;
         if add_cents <= 0 {
@@ -55,7 +69,7 @@ impl AccountManagementService {
         )
         .bind(PgMoney(add_cents))
         .bind(user_id)
-        .execute(&self.user_db)
+        .execute(&self.db)
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?
         .rows_affected();
@@ -76,7 +90,7 @@ impl AccountManagementService {
         )
         .bind(PgMoney(deduct_cents))
         .bind(user_id)
-        .execute(&self.user_db)
+        .execute(&self.db)
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         if rows_affected.rows_affected() > 0 {
