@@ -73,6 +73,6 @@ impl UserService {
             .fetch_one(&self.user_db)
             .await
             .map_err(|e| UserError::DatabaseError(e))?;
-        Ok(rec.try_get("id").unwrap())
+        Ok(rec.try_get("id")?)
     }
 }
