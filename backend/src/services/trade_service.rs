@@ -12,21 +12,23 @@ use num_traits::ToPrimitive;
 use sqlx::Row;
 use sqlx::{types::BigDecimal, PgPool};
 use std::str::FromStr;
+use std::sync::Arc;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct TradeService {
     pub db: PgPool,
-    pub ticker_service: TickerService,
-    pub account_management_service: AccountManagementService,
-    pub portfolio_management_service: PortfolioManagementService,
+    pub ticker_service: Arc<TickerService>,
+    pub account_management_service: Arc<AccountManagementService>,
+    pub portfolio_management_service: Arc<PortfolioManagementService>,
 }
 #[allow(dead_code)]
 impl TradeService {
     pub fn new(
         db: PgPool,
-        ticker_service: TickerService,
-        account_management_service: AccountManagementService,
-        portfolio_management_service: PortfolioManagementService,
+        ticker_service: Arc<TickerService>,
+        account_management_service: Arc<AccountManagementService>,
+        portfolio_management_service: Arc<PortfolioManagementService>,
     ) -> Self {
         Self {
             db,
@@ -35,6 +37,7 @@ impl TradeService {
             portfolio_management_service,
         }
     }
+
     pub async fn get_order(&self, order_id: Uuid) -> Result<Order, TradeError> {
         let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1")
             .bind(order_id)
@@ -56,6 +59,7 @@ impl TradeService {
                 .map_err(|_| TradeError::InvalidOrderStatus)?,
         })
     }
+
     pub async fn execute_order(&self, order_id: Uuid) -> Result<(), TradeError> {
         let order = self.get_order(order_id).await?;
         //validation checks

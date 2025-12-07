@@ -1,17 +1,33 @@
+use std::sync::Arc;
+
 use crate::models::errors::user_error::UserError;
-use sqlx::postgres::types::PgMoney;
+use crate::services::account_management_service::AccountManagementService;
+use crate::services::portfolio_management_service::PortfolioManagementService;
+
 use sqlx::PgPool;
+use sqlx::Row;
 use uuid::Uuid;
 //current implementation assumes no Errors
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct UserService {
-    pub user_db: PgPool,
+    user_db: PgPool,
+    account_management_service: Arc<AccountManagementService>,
+    portfolio_management_service: Arc<PortfolioManagementService>,
 }
 #[allow(dead_code)]
 impl UserService {
     //need to implement getters
-    pub fn new(db: PgPool) -> Self {
-        Self { user_db: (db) }
+    pub fn new(
+        db: PgPool,
+        account_management_service: Arc<AccountManagementService>,
+        portfolio_management_service: Arc<PortfolioManagementService>,
+    ) -> Self {
+        Self {
+            user_db: db,
+            account_management_service,
+            portfolio_management_service,
+        }
     }
     pub async fn create_user(
         &self,
@@ -20,13 +36,13 @@ impl UserService {
         email: &str,
         password_hash: &str,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+        sqlx::query(
             "INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4)",
-            user_id,
-            username,
-            email,
-            password_hash
         )
+        .bind(user_id)
+        .bind(username)
+        .bind(email)
+        .bind(password_hash)
         .execute(&self.user_db)
         .await?;
 
@@ -34,18 +50,6 @@ impl UserService {
         Ok(())
     }
 
-    pub async fn create_user_balance_account(&self, user_id: Uuid) -> Result<(), UserError> {
-        let starting_amount: i64 = 100000;
-        sqlx::query(
-            "INSERT INTO user_balance(uid, balance, available_balance) VALUES ($1, $2, $3)",
-        )
-        .bind(user_id)
-        .bind(PgMoney(starting_amount))
-        .bind(PgMoney(starting_amount))
-        .execute(&self.user_db)
-        .await?;
-        Ok(())
-    }
     pub async fn register_user(
         &self,
         username: &str,
@@ -57,13 +61,18 @@ impl UserService {
         let password_hash = password;
         self.create_user(user_id, username, email, password_hash)
             .await?;
-        self.create_user_balance_account(user_id).await?;
+        self.account_management_service
+            .create_user_balance_account(user_id)
+            .await?;
         Ok(())
     }
+
     pub async fn get_user_uuid(&self, username: &str) -> Result<Uuid, UserError> {
-        let rec = sqlx::query!("SELECT id FROM users WHERE username = $1", username)
+        let rec = sqlx::query("SELECT id FROM users WHERE username = $1")
+            .bind(username)
             .fetch_one(&self.user_db)
-            .await?;
-        Ok(rec.id)
+            .await
+            .map_err(|e| UserError::DatabaseError(e))?;
+        Ok(rec.try_get("id")?)
     }
 }

@@ -4,10 +4,15 @@ use sqlx::types::BigDecimal;
 use sqlx::PgPool;
 use sqlx::Row;
 use uuid::Uuid;
+
+#[derive(Clone)]
 pub struct PortfolioManagementService {
-    pub user_db: PgPool,
+    pub db: PgPool,
 }
 impl PortfolioManagementService {
+    pub fn new(db: PgPool) -> Self {
+        Self { db }
+    }
     pub async fn check_holdings(
         &self,
         user_id: Uuid,
@@ -16,7 +21,7 @@ impl PortfolioManagementService {
         let rec = sqlx::query("SELECT * FROM portfolio WHERE uid = $1 AND ticker = $2")
             .bind(user_id)
             .bind(symbol)
-            .fetch_one(&self.user_db)
+            .fetch_one(&self.db)
             .await
             .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         if rec.is_empty() {
@@ -31,31 +36,32 @@ impl PortfolioManagementService {
         symbol: &str,
         quantity: BigDecimal,
     ) -> Result<(), TradeError> {
-        let rec = sqlx::query(
+        let _rec = sqlx::query(
             "INSERT INTO portfolio (uid, ticker, quantity) VALUES ($1, $2, $3)
             ON CONFLICT (uid, ticker) DO UPDATE SET quantity = portfolio.quantity + $3",
         )
         .bind(user_id)
         .bind(symbol)
         .bind(quantity)
-        .execute(&self.user_db)
+        .execute(&self.db)
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         Ok(())
     }
+
     pub async fn remove_from_portfolio(
         &self,
         user_id: Uuid,
         symbol: &str,
         quantity: BigDecimal,
     ) -> Result<(), TradeError> {
-        let rec = sqlx::query(
+        let _rec = sqlx::query(
             "UPDATE portfolio SET quantity = quantity - $3 WHERE uid = $1 AND ticker = $2 AND quantity >= $3",
         )
         .bind(user_id)
         .bind(symbol)
         .bind(quantity)
-        .execute(&self.user_db)
+        .execute(&self.db)
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         Ok(())
