@@ -2,15 +2,20 @@ use alpha_vantage::ApiClient;
 use sqlx::PgPool;
 
 use crate::models::stock_ticker::Ticker;
+
+#[derive(Clone)]
 pub struct TickerService {
-    pub api_client: ApiClient,
+    pub api_client: std::sync::Arc<ApiClient>,
     pub mock_db: PgPool,
 }
 #[allow(dead_code)]
 impl TickerService {
     pub fn new(api_key: &str, mock_db: PgPool) -> Self {
         Self {
-            api_client: (alpha_vantage::set_api(api_key, reqwest::Client::new())),
+            api_client: std::sync::Arc::new(alpha_vantage::set_api(
+                api_key,
+                reqwest::Client::new(),
+            )),
             mock_db: mock_db,
         }
     }

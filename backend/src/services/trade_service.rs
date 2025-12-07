@@ -12,21 +12,23 @@ use num_traits::ToPrimitive;
 use sqlx::Row;
 use sqlx::{types::BigDecimal, PgPool};
 use std::str::FromStr;
+use std::sync::Arc;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct TradeService {
     pub db: PgPool,
-    pub ticker_service: TickerService,
-    pub account_management_service: AccountManagementService,
-    pub portfolio_management_service: PortfolioManagementService,
+    pub ticker_service: Arc<TickerService>,
+    pub account_management_service: Arc<AccountManagementService>,
+    pub portfolio_management_service: Arc<PortfolioManagementService>,
 }
 #[allow(dead_code)]
 impl TradeService {
     pub fn new(
         db: PgPool,
-        ticker_service: TickerService,
-        account_management_service: AccountManagementService,
-        portfolio_management_service: PortfolioManagementService,
+        ticker_service: Arc<TickerService>,
+        account_management_service: Arc<AccountManagementService>,
+        portfolio_management_service: Arc<PortfolioManagementService>,
     ) -> Self {
         Self {
             db,

@@ -4,10 +4,15 @@ use sqlx::types::BigDecimal;
 use sqlx::PgPool;
 use sqlx::Row;
 use uuid::Uuid;
+
+#[derive(Clone)]
 pub struct PortfolioManagementService {
     pub user_db: PgPool,
 }
 impl PortfolioManagementService {
+    pub fn new(user_db: PgPool) -> Self {
+        Self { user_db }
+    }
     pub async fn check_holdings(
         &self,
         user_id: Uuid,

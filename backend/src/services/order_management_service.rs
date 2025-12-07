@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
 use crate::{
     models::{
@@ -16,23 +17,25 @@ use sqlx::types::BigDecimal;
 use sqlx::PgPool;
 use sqlx::Row;
 use uuid::Uuid;
+
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct OrderManagementService {
     pub db: PgPool,
-    pub user_service: UserService,
-    pub trade_service: TickerService,
-    pub account_management_service: AccountManagementService,
-    pub portfolio_management_service: PortfolioManagementService,
+    pub user_service: Arc<UserService>,
+    pub trade_service: Arc<TickerService>,
+    pub account_management_service: Arc<AccountManagementService>,
+    pub portfolio_management_service: Arc<PortfolioManagementService>,
 }
 
 #[allow(dead_code)]
 impl OrderManagementService {
     pub fn new(
         db: PgPool,
-        user_service: UserService,
-        trade_service: TickerService,
-        account_management_service: AccountManagementService,
-        portfolio_management_service: PortfolioManagementService,
+        user_service: Arc<UserService>,
+        trade_service: Arc<TickerService>,
+        account_management_service: Arc<AccountManagementService>,
+        portfolio_management_service: Arc<PortfolioManagementService>,
     ) -> Self {
         Self {
             db,
@@ -160,5 +163,24 @@ impl OrderManagementService {
             })
             .collect::<Result<Vec<Order>, TradeError>>()?;
         Ok(orders)
+    }
+    pub async fn get_order(&self, order_id: Uuid) -> Result<Order, TradeError> {
+        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1")
+            .bind(order_id)
+            .fetch_one(&self.db)
+            .await
+            .map_err(|e| TradeError::DatabaseError(e))?;
+        let order = Order {
+            order_id: rec.try_get("order_id")?,
+            user_id: rec.try_get("user_id")?,
+            symbol: rec.try_get("symbol")?,
+            quantity: rec.try_get("quantity")?,
+            price: rec.try_get("price")?,
+            order_type: OrderType::from_str(rec.try_get("order_type")?)
+                .map_err(|_| TradeError::InvalidOrderType)?,
+            status: OrderStatus::from_str(rec.try_get("status")?)
+                .map_err(|_| TradeError::InvalidOrderStatus)?,
+        };
+        Ok(order)
     }
 }

@@ -4,6 +4,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 //current implementation assumes no Errors
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct UserService {
     pub user_db: PgPool,
 }

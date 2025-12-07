@@ -4,10 +4,15 @@ use sqlx::postgres::types::PgMoney;
 use sqlx::PgPool;
 use sqlx::Row;
 use uuid::Uuid;
+
+#[derive(Clone)]
 pub struct AccountManagementService {
     pub user_db: PgPool,
 }
 impl AccountManagementService {
+    pub fn new(user_db: PgPool) -> Self {
+        Self { user_db }
+    }
     pub async fn get_user_balance(&self, user_id: Uuid) -> Result<(PgMoney, PgMoney), UserError> {
         let rec = sqlx::query("SELECT balance,available_balance FROM user_balance WHERE uid = $1")
             .bind(user_id)
