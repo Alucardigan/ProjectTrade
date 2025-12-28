@@ -6,6 +6,6 @@ import HomePage from './Pages/Homepage.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <HomePage />
+    <App />
   </StrictMode>,
 )

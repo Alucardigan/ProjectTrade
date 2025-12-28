@@ -121,7 +121,7 @@ impl OrderManagementService {
         Ok(OrderStatus::from_str(order_status_str).map_err(|_e| TradeError::InvalidOrderStatus)?)
     }
 
-    pub async fn cancel_order(&self, order_id: Uuid) -> Result<(), TradeError> {
+    pub async fn cancel_order(&self, order_id: Uuid, user_id: Uuid) -> Result<(), TradeError> {
         let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1")
             .bind(order_id)
             .fetch_one(&self.db)
@@ -132,6 +132,12 @@ impl OrderManagementService {
             .map_err(|_| TradeError::InvalidOrderStatus)?;
         if order_status_str == "Cancelled" {
             return Ok(());
+        }
+        let user_id_str: &str = rec
+            .try_get("user_id")
+            .map_err(|_| TradeError::UserError(UserError::InvalidCredentials))?;
+        if Uuid::parse_str(user_id_str).unwrap() != user_id {
+            return Err(TradeError::UserError(UserError::InvalidCredentials));
         }
         sqlx::query("UPDATE orders SET status = 'Cancelled' WHERE order_id = $1")
             .bind(order_id)
@@ -166,9 +172,10 @@ impl OrderManagementService {
         Ok(orders)
     }
 
-    pub async fn get_order(&self, order_id: Uuid) -> Result<Order, TradeError> {
-        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1")
+    pub async fn get_order(&self, order_id: Uuid, user_id: Uuid) -> Result<Order, TradeError> {
+        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1 AND user_id = $2")
             .bind(order_id)
+            .bind(user_id)
             .fetch_one(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;

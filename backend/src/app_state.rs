@@ -1,5 +1,4 @@
-use std::sync::Arc;
-
+use crate::authentication::basic_client::AuthorizationClient;
 use crate::services::account_management_service::AccountManagementService;
 use crate::services::order_management_service::OrderManagementService;
 use crate::services::portfolio_management_service::PortfolioManagementService;
@@ -7,9 +6,11 @@ use crate::services::ticker_service::TickerService;
 use crate::services::trade_service::TradeService;
 use crate::services::user_service::UserService;
 use sqlx::PgPool;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {
+    pub db: PgPool,
     pub user_service: Arc<UserService>,
     pub ticker_service: Arc<TickerService>,
     pub trade_service: Arc<TradeService>,
@@ -23,10 +24,12 @@ impl AppState {
         let ticker_service = Arc::new(TickerService::new(api_key, db.clone()));
         let portfolio_service = Arc::new(PortfolioManagementService::new(db.clone()));
         let account_management_service = Arc::new(AccountManagementService::new(db.clone()));
+        let authentication_client = Arc::new(AuthorizationClient::new());
         let user_service = Arc::new(UserService::new(
             db.clone(),
             account_management_service.clone(),
             portfolio_service.clone(),
+            authentication_client.clone(),
         ));
 
         let order_management_service = Arc::new(OrderManagementService::new(
@@ -45,6 +48,7 @@ impl AppState {
         ));
 
         Self {
+            db,
             user_service,
             ticker_service,
             trade_service,
