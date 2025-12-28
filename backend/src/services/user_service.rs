@@ -51,7 +51,7 @@ impl UserService {
             "
             INSERT INTO users (user_id, auth_user_id, username, email) 
             VALUES ($1, $2, $3, $4)
-            ON CONFLICT (email) DO UPDATE SET username = EXCLUDED.username
+            ON CONFLICT (auth_user_id) DO UPDATE SET username = EXCLUDED.username, email = EXCLUDED.email
             RETURNING user_id
             ",
         )
@@ -74,7 +74,7 @@ impl UserService {
             .fetch_one(&self.user_db)
             .await
             .map_err(|e| UserError::DatabaseError(e))?;
-        Ok(rec.try_get("id")?)
+        Ok(rec.try_get("user_id")?)
     }
     pub async fn login_user(&self) -> Result<Auth0LoginResponse, UserError> {
         print!("login user");
