@@ -1,3 +1,5 @@
+use std::env;
+
 use oauth2::basic::{BasicClient, BasicErrorResponseType, BasicTokenType};
 use oauth2::{
     AccessToken, AuthUrl, AuthorizationCode, Client, ClientId, ClientSecret, CsrfToken,
@@ -34,23 +36,15 @@ pub struct Auth0LoginResponse {
 
 impl AuthorizationClient {
     pub fn new() -> AuthorizationClient {
-        let client = BasicClient::new(ClientId::new(
-            "eR1S97cUkQu250dxDWfCWC9k0fyD0RnU".to_string(),
-        ))
-        .set_client_secret(ClientSecret::new(
-            "jYWgKwX07ZXtRs3W4NvZ1sNee27Hap2C4_g6GSrGP_-7ZcktFn-ddg-o09nJ3TyV".to_string(),
-        ))
-        .set_auth_uri(
-            AuthUrl::new("https://dev-6ai4111julu36rxl.us.auth0.com/authorize".to_string())
-                .unwrap(),
-        )
-        .set_token_uri(
-            TokenUrl::new("https://dev-6ai4111julu36rxl.us.auth0.com/oauth/token".to_string())
-                .unwrap(),
-        )
-        .set_redirect_uri(
-            RedirectUrl::new("http://localhost:3000/auth_callback".to_string()).unwrap(),
-        );
+        let client = BasicClient::new(ClientId::new(env::var("AUTH_CLIENT_ID").unwrap()))
+            .set_client_secret(ClientSecret::new(env::var("AUTH_CLIENT_SECRET").unwrap()))
+            .set_auth_uri(AuthUrl::new(env::var("AUTH_DOMAIN").unwrap() + "/authorize").unwrap())
+            .set_token_uri(
+                TokenUrl::new(env::var("AUTH_DOMAIN").unwrap() + "/oauth/token").unwrap(),
+            )
+            .set_redirect_uri(
+                RedirectUrl::new(env::var("FRONTEND_URL").unwrap() + "/auth_callback").unwrap(),
+            );
         let http_client = reqwest::ClientBuilder::new()
             // Following redirects opens the client up to SSRF vulnerabilities.
             .redirect(reqwest::redirect::Policy::none())

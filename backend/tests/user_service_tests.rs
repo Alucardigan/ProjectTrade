@@ -1,3 +1,4 @@
+use backend::authentication::basic_client::AuthorizationClient;
 use backend::services::account_management_service::AccountManagementService;
 use backend::services::portfolio_management_service::PortfolioManagementService;
 use backend::services::user_service::UserService;
@@ -20,7 +21,13 @@ async fn test_user_service_registration() {
     let pool = setup_db().await;
     let account_service = Arc::new(AccountManagementService::new(pool.clone()));
     let portfolio_service = Arc::new(PortfolioManagementService::new(pool.clone()));
-    let service = UserService::new(pool.clone(), account_service, portfolio_service);
+    let auth_client = Arc::new(AuthorizationClient::new());
+    let service = UserService::new(
+        pool.clone(),
+        account_service,
+        portfolio_service,
+        auth_client,
+    );
 
     let username = format!("testuser_{}", Uuid::new_v4());
     let email = format!("{}@example.com", username);
