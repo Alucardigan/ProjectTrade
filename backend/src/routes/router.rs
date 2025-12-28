@@ -21,9 +21,7 @@ pub fn create_router(app_state: AppState) -> Router<AppState> {
         .route("/place_order", post(place_order))
         .route("/cancel_order/:order_id", post(cancel_order))
         .route("/order_status/:order_id", get(get_order_status))
-        .route("/order/:order_id", get(get_order));
-    Router::new()
-        .merge(public_routes)
-        .merge(private_routes)
-        .layer(from_fn_with_state(app_state, auth0_middleware))
+        .route("/order/:order_id", get(get_order))
+        .layer(from_fn_with_state(app_state, auth0_middleware));
+    Router::new().merge(public_routes).merge(private_routes)
 }
