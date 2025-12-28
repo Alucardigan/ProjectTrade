@@ -19,8 +19,9 @@ pub async fn auth0_middleware(
         .map_err(|_| ApiError::Unauthorized("Invalid session ID".to_string()))?;
     //get the user_id
     let record = sqlx::query!(
-        "SELECT user_id FROM sessions WHERE session_id = $1",
+        "SELECT user_id FROM sessions WHERE session_id = $1 AND expires_at > $2",
         session_uuid,
+        Utc::now().naive_utc(),
     )
     .fetch_one(&app_state.db)
     .await
