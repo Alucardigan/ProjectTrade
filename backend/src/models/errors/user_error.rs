@@ -1,3 +1,6 @@
+use oauth2::{
+    basic::BasicErrorResponseType, HttpClientError, RequestTokenError, StandardErrorResponse,
+};
 use thiserror::Error;
 #[derive(Error, Debug)]
 #[allow(dead_code)]
@@ -14,6 +17,18 @@ pub enum UserError {
     InsufficientFunds,
     #[error("Insufficient holdings")]
     InsufficientHoldings,
+    #[error("CSRF Mismatch")]
+    CSRFMismatch,
+    #[error("OAuth token exchange failed: {0}")]
+    TokenExchange(
+        #[from]
+        RequestTokenError<
+            HttpClientError<reqwest::Error>,
+            StandardErrorResponse<BasicErrorResponseType>,
+        >,
+    ),
+    #[error("HTTP Client Error: {0}")]
+    ReqwestError(#[from] reqwest::Error),
 }
 use crate::models::errors::api_error::ApiError;
 
@@ -32,6 +47,9 @@ impl From<UserError> for ApiError {
             UserError::InsufficientHoldings => {
                 ApiError::BadRequest("Insufficient holdings".to_string())
             }
+            UserError::CSRFMismatch => ApiError::BadRequest("CSRF Mismatch".to_string()),
+            UserError::TokenExchange(e) => ApiError::InternalServerError(e.to_string()),
+            UserError::ReqwestError(e) => ApiError::InternalServerError(e.to_string()),
         }
     }
 }

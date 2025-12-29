@@ -18,7 +18,7 @@ impl PortfolioManagementService {
         user_id: Uuid,
         symbol: &str,
     ) -> Result<BigDecimal, TradeError> {
-        let rec = sqlx::query("SELECT * FROM portfolio WHERE uid = $1 AND ticker = $2")
+        let rec = sqlx::query("SELECT * FROM portfolio WHERE user_id = $1 AND ticker = $2")
             .bind(user_id)
             .bind(symbol)
             .fetch_one(&self.db)
@@ -37,8 +37,8 @@ impl PortfolioManagementService {
         quantity: BigDecimal,
     ) -> Result<(), TradeError> {
         let _rec = sqlx::query(
-            "INSERT INTO portfolio (uid, ticker, quantity) VALUES ($1, $2, $3)
-            ON CONFLICT (uid, ticker) DO UPDATE SET quantity = portfolio.quantity + $3",
+            "INSERT INTO portfolio (user_id, ticker, quantity) VALUES ($1, $2, $3)
+            ON CONFLICT (user_id, ticker) DO UPDATE SET quantity = portfolio.quantity + $3",
         )
         .bind(user_id)
         .bind(symbol)

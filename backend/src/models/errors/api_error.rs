@@ -16,6 +16,8 @@ pub enum ApiError {
     InternalServerError(String),
     #[error("Unauthorized: {0}")]
     Unauthorized(String),
+    #[error("Cookie not found: {0}")]
+    MissingCookie(String),
 }
 
 impl IntoResponse for ApiError {
@@ -24,10 +26,8 @@ impl IntoResponse for ApiError {
             ApiError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             ApiError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             ApiError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
-            ApiError::InternalServerError(_msg) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Internal server error".to_string(),
-            ),
+            ApiError::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            ApiError::MissingCookie(msg) => (StatusCode::UNAUTHORIZED, msg),
         };
 
         (status, Json(json!({ "error": message }))).into_response()

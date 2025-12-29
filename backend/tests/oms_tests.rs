@@ -1,3 +1,4 @@
+use backend::authentication::basic_client::AuthorizationClient;
 use backend::models::order::{OrderStatus, OrderType};
 use backend::services::account_management_service::AccountManagementService;
 use backend::services::order_management_service::OrderManagementService;
@@ -26,10 +27,12 @@ async fn test_order_placement() {
     let account_service = Arc::new(AccountManagementService::new(pool.clone()));
     let portfolio_service = Arc::new(PortfolioManagementService::new(pool.clone()));
     let ticker_service = Arc::new(TickerService::new("mock", pool.clone()));
+    let auth_client = Arc::new(AuthorizationClient::new());
     let user_service = Arc::new(UserService::new(
         pool.clone(),
         account_service.clone(),
         portfolio_service.clone(),
+        auth_client,
     ));
 
     let oms = OrderManagementService::new(

@@ -109,9 +109,14 @@ impl OrderManagementService {
         })
     }
 
-    pub async fn get_order_status(&self, order_id: Uuid) -> Result<OrderStatus, TradeError> {
-        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1")
+    pub async fn get_order_status(
+        &self,
+        order_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<OrderStatus, TradeError> {
+        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1 AND user_id = $2")
             .bind(order_id)
+            .bind(user_id)
             .fetch_one(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
@@ -121,15 +126,17 @@ impl OrderManagementService {
         Ok(OrderStatus::from_str(order_status_str).map_err(|_e| TradeError::InvalidOrderStatus)?)
     }
 
-    pub async fn cancel_order(&self, order_id: Uuid) -> Result<(), TradeError> {
-        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1")
+    pub async fn cancel_order(&self, order_id: Uuid, user_id: Uuid) -> Result<(), TradeError> {
+        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1 AND user_id = $2")
             .bind(order_id)
+            .bind(user_id)
             .fetch_one(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
         let order_status_str: &str = rec
             .try_get("status")
             .map_err(|_| TradeError::InvalidOrderStatus)?;
+        //if order is already cancelled, no need to cancel
         if order_status_str == "Cancelled" {
             return Ok(());
         }
@@ -166,9 +173,10 @@ impl OrderManagementService {
         Ok(orders)
     }
 
-    pub async fn get_order(&self, order_id: Uuid) -> Result<Order, TradeError> {
-        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1")
+    pub async fn get_order(&self, order_id: Uuid, user_id: Uuid) -> Result<Order, TradeError> {
+        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1 AND user_id = $2")
             .bind(order_id)
+            .bind(user_id)
             .fetch_one(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;

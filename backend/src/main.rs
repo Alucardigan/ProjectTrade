@@ -1,9 +1,7 @@
 use anyhow::Result;
-use axum::{routing::get, Router};
 use backend::app_state::AppState;
-use backend::routes;
+use backend::routes::router::create_router;
 use dotenv::dotenv;
-use routes::ticker_handler::get_ticker;
 use sqlx::PgPool;
 use std::env;
 
@@ -15,16 +13,16 @@ async fn main() -> Result<()> {
     let _db = PgPool::connect(&db_url).await?;
 
     let app_state = AppState::new(_db, "mock");
-    let app = Router::new()
-        .route("/tickers", get(get_ticker))
-        .with_state(app_state);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
+    let app = create_router(app_state.clone()).with_state(app_state);
+    let listener = tokio::net::TcpListener::bind("localhost:3000").await?;
     println!(
         "🦀 Server running on http://{}",
         listener.local_addr().unwrap()
     );
 
     // Axum 0.7 helper: no hyper boilerplate needed
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap();
     Ok(())
 }
