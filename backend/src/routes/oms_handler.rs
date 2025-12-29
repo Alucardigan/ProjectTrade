@@ -24,10 +24,11 @@ pub struct PlaceOrderRequest {
 pub async fn get_order_status(
     State(app_state): State<AppState>,
     Path(order_id): Path<Uuid>,
+    Extension(user_id): Extension<Uuid>,
 ) -> Result<Json<OrderStatus>, ApiError> {
     let order_status = app_state
         .order_management_service
-        .get_order_status(order_id)
+        .get_order_status(order_id, user_id)
         .await?;
     Ok(Json(order_status))
 }
