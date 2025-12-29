@@ -62,14 +62,15 @@ impl UserService {
         .fetch_one(&self.user_db)
         .await?;
 
-        let id: Uuid = row
+        let inserted_user_id: Uuid = row
             .try_get("user_id")
             .map_err(|e| UserError::DatabaseError(e))?;
-        Ok(id)
+        Ok(inserted_user_id)
     }
 
+    //should this function exist?
     pub async fn get_user_uuid(&self, username: &str) -> Result<Uuid, UserError> {
-        let rec = sqlx::query("SELECT id FROM users WHERE username = $1")
+        let rec = sqlx::query("SELECT user_id FROM users WHERE username = $1")
             .bind(username)
             .fetch_one(&self.user_db)
             .await
@@ -77,7 +78,6 @@ impl UserService {
         Ok(rec.try_get("user_id")?)
     }
     pub async fn login_user(&self) -> Result<Auth0LoginResponse, UserError> {
-        print!("login user");
         let auth0_login_response = self.authentication_client.auth0_login().await;
         Ok(auth0_login_response)
     }
@@ -104,7 +104,6 @@ impl UserService {
         user_id = self
             .upsert_user(user_id, &user_info.sub, username, &user_info.email)
             .await?;
-        println!("user created successfully!");
         //session creation
         let session_id = Uuid::new_v4();
         let expires_at = chrono::Utc::now() + chrono::Duration::days(Self::SESSION_LENGTH);
@@ -120,7 +119,6 @@ impl UserService {
         .execute(&self.user_db)
         .await
         .map_err(|e| UserError::DatabaseError(e))?;
-        println!("Session created successfully!");
         Ok(session_id)
     }
 }
