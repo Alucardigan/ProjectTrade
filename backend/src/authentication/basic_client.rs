@@ -106,7 +106,7 @@ impl AuthorizationClient {
     ) -> Result<Auth0UserInfo, UserError> {
         let response = self
             .http_client
-            .get("https://dev-6ai4111julu36rxl.us.auth0.com/userinfo")
+            .get(env::var("AUTH_DOMAIN").expect("AUTH_DOMAIN not set") + "/userinfo")
             .bearer_auth(access_token.secret())
             .send()
             .await?;
