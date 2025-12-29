@@ -68,7 +68,6 @@ impl AuthorizationClient {
             ])
             .set_pkce_challenge(pkce_code_challenge)
             .url();
-        println!("Auth URL: {}", auth_url);
         return Auth0LoginResponse {
             auth_url,
             pkce_code_verifier,
@@ -94,7 +93,6 @@ impl AuthorizationClient {
         {
             Ok(res) => res,
             Err(e) => {
-                println!("Token exchange error: {:?}", e);
                 return Err(UserError::TokenExchange(e));
             }
         };

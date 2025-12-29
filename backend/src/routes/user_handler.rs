@@ -47,7 +47,6 @@ pub async fn auth0_callback(
     cookies: CookieJar,
     Query(query): Query<AuthCallbackQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
-    println!("Auth callback");
     //extraction
     let csrf_token = cookies
         .get("csrf_token")
