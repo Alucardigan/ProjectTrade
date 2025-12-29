@@ -31,14 +31,19 @@ pub async fn login_user(State(app_state): State<AppState>) -> Result<impl IntoRe
     );
     let auth_url = auth0_login_response.auth_url.to_string();
     let mut redirect_response = Redirect::to(&auth_url).into_response();
-    redirect_response.headers_mut().append(
-        SET_COOKIE,
-        HeaderValue::from_str(&csrf_token_cookie.to_string()).unwrap(),
-    );
-    redirect_response.headers_mut().append(
-        SET_COOKIE,
-        HeaderValue::from_str(&pkce_code_verifier_cookie.to_string()).unwrap(),
-    );
+    let csrf_token_header = HeaderValue::from_str(&csrf_token_cookie.to_string()).map_err(|e| {
+        ApiError::InternalServerError(format!("Failed to create csrf token header: {}", e))
+    })?;
+    let pkce_code_verifier_header = HeaderValue::from_str(&pkce_code_verifier_cookie.to_string())
+        .map_err(|e| {
+        ApiError::InternalServerError(format!("Failed to create pkce code verifier header: {}", e))
+    })?;
+    redirect_response
+        .headers_mut()
+        .append(SET_COOKIE, csrf_token_header);
+    redirect_response
+        .headers_mut()
+        .append(SET_COOKIE, pkce_code_verifier_header);
     Ok(redirect_response)
 }
 
