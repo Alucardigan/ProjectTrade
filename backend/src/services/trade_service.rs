@@ -24,6 +24,7 @@ pub struct TradeService {
 }
 #[allow(dead_code)]
 impl TradeService {
+    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 10;
     pub fn new(
         db: PgPool,
         ticker_service: Arc<TickerService>,
@@ -50,9 +51,9 @@ impl TradeService {
         Ok(Order {
             order_id: rec.try_get("order_id")?,
             user_id: rec.try_get("user_id")?,
-            symbol: rec.try_get("symbol")?,
+            symbol: rec.try_get("ticker")?,
             quantity: rec.try_get("quantity")?,
-            price: rec.try_get("price")?,
+            price_per_share: rec.try_get("price_per_share")?,
             order_type: OrderType::from_str(rec.try_get("order_type")?)
                 .map_err(|_| TradeError::InvalidOrderType)?,
             status: OrderStatus::from_str(order_status_str)
@@ -69,9 +70,12 @@ impl TradeService {
         if order.quantity < BigDecimal::from(0) {
             return Err(TradeError::InvalidAmount);
         }
-        let price = self.ticker_service.search_symbol(&order.symbol).await.price;
-        let total_purchase_price =
-            price * order.quantity.to_f64().ok_or(TradeError::InvalidAmount)?;
+        let price = self
+            .ticker_service
+            .search_symbol(&order.symbol)
+            .await
+            .price_per_share;
+        let total_purchase_price = &price * &order.quantity;
         match order.order_type {
             OrderType::Buy => {
                 self.account_management_service
@@ -90,6 +94,64 @@ impl TradeService {
                     .await?;
             }
         }
+        sqlx::query("UPDATE orders SET status = $2 WHERE order_id = $1")
+            .bind(order_id)
+            .bind(OrderStatus::Executed.to_string())
+            .execute(&self.db)
+            .await
+            .map_err(|e| TradeError::DatabaseError(e))?;
         Ok(())
+    }
+    pub async fn get_pending_orders(&self) -> Result<Vec<Order>, TradeError> {
+        let rec = sqlx::query(
+            "SELECT * FROM orders WHERE status =$1::order_status ORDER BY created_at ASC",
+        )
+        .bind(OrderStatus::Pending.to_string())
+        .fetch_all(&self.db)
+        .await
+        .map_err(|e| TradeError::DatabaseError(e))?;
+        let mut orders = Vec::new();
+        for rec in rec {
+            orders.push(Order {
+                order_id: rec.try_get("order_id")?,
+                user_id: rec.try_get("user_id")?,
+                symbol: rec.try_get("ticker")?,
+                quantity: rec.try_get("quantity")?,
+                price_per_share: rec.try_get("price_per_share")?,
+                order_type: OrderType::from_str(rec.try_get("order_type")?)
+                    .map_err(|_| TradeError::InvalidOrderType)?,
+                status: OrderStatus::from_str(rec.try_get("status")?)
+                    .map_err(|_| TradeError::InvalidOrderStatus)?,
+            });
+        }
+        Ok(orders)
+    }
+    pub fn create_order_processor(
+        self: Arc<Self>,
+    ) -> tokio::task::JoinHandle<Result<(), TradeError>> {
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
+                Self::ORDER_PROCESSOR_INTERVAL_SECS,
+            ));
+            loop {
+                interval.tick().await;
+                match self.get_pending_orders().await {
+                    Ok(pending_orders) => {
+                        println!("Pending orders: {}", pending_orders.len());
+                        for order in pending_orders {
+                            match self.execute_order(order.order_id).await {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    println!("Failed to execute order: {:?}", e);
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        println!("Failed to fetch pending orders: {:?}", e);
+                    }
+                }
+            }
+        })
     }
 }

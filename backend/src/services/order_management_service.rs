@@ -50,10 +50,10 @@ impl OrderManagementService {
     pub async fn place_order(
         &self,
         user_id: Uuid,
-        symbol: &str,
+        ticker: &str,
         quantity: BigDecimal,
         order_type: OrderType,
-        _price_buffer: f64,
+        _price_buffer: BigDecimal,
     ) -> Result<Order, TradeError> {
         // TODO : Add atomicity to this function
         let order_id = Uuid::new_v4();
@@ -62,8 +62,12 @@ impl OrderManagementService {
             return Err(TradeError::InvalidAmount);
         }
         //price calculation
-        let price = self.trade_service.search_symbol(symbol).await.price;
-        let total_purchase_price = price * quantity.to_f64().ok_or(TradeError::InvalidAmount)?;
+        let price_per_share = self
+            .trade_service
+            .search_symbol(ticker)
+            .await
+            .price_per_share;
+        let total_purchase_price = &price_per_share * &quantity;
         match order_type {
             OrderType::Buy => {
                 // Reserve funds
@@ -75,7 +79,7 @@ impl OrderManagementService {
                 // Check holdings
                 let holdings = self
                     .portfolio_management_service
-                    .check_holdings(user_id, symbol)
+                    .check_holdings(user_id, ticker)
                     .await?;
                 if holdings < quantity {
                     return Err(TradeError::UserError(UserError::InsufficientHoldings));
@@ -85,14 +89,14 @@ impl OrderManagementService {
         //Placing order
         sqlx::query(
             "INSERT INTO orders 
-        (order_id, user_id, symbol, quantity, price, order_type, status) 
+        (order_id, user_id, ticker, quantity, price_per_share, order_type, status) 
         VALUES ($1, $2, $3, $4, $5, $6, $7)",
         )
         .bind(order_id)
         .bind(user_id)
-        .bind(symbol)
+        .bind(ticker)
         .bind(quantity.clone())
-        .bind(price)
+        .bind(&price_per_share)
         .bind(order_type.to_string())
         .bind(status.to_string())
         .execute(&self.db)
@@ -101,9 +105,9 @@ impl OrderManagementService {
         Ok(Order {
             order_id,
             user_id,
-            symbol: symbol.to_string(),
+            symbol: ticker.to_string(),
             quantity,
-            price,
+            price_per_share,
             order_type,
             status,
         })
@@ -162,7 +166,7 @@ impl OrderManagementService {
                     user_id: r.try_get("user_id")?,
                     symbol: r.try_get("symbol")?,
                     quantity: r.try_get("quantity")?,
-                    price: r.try_get("price")?,
+                    price_per_share: r.try_get("price_per_share")?,
                     order_type: OrderType::from_str(r.try_get("order_type")?)
                         .map_err(|_| TradeError::InvalidOrderType)?,
                     status: OrderStatus::from_str(r.try_get("status")?)
@@ -185,7 +189,7 @@ impl OrderManagementService {
             user_id: rec.try_get("user_id")?,
             symbol: rec.try_get("symbol")?,
             quantity: rec.try_get("quantity")?,
-            price: rec.try_get("price")?,
+            price_per_share: rec.try_get("price_per_share")?,
             order_type: OrderType::from_str(rec.try_get("order_type")?)
                 .map_err(|_| TradeError::InvalidOrderType)?,
             status: OrderStatus::from_str(rec.try_get("status")?)

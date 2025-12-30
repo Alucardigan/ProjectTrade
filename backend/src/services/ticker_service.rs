@@ -1,4 +1,7 @@
 use alpha_vantage::ApiClient;
+use bigdecimal::BigDecimal;
+use num_traits::FromPrimitive;
+use num_traits::Zero;
 use sqlx::PgPool;
 use sqlx::Row;
 
@@ -32,14 +35,22 @@ impl TickerService {
             .map(|rows| {
                 rows.iter()
                     .map(|row| row.try_get("close").unwrap_or_default())
-                    .collect::<Vec<f64>>()
+                    .collect::<Vec<BigDecimal>>()
             })
-            .unwrap_or_else(|_| vec![120.0, 121.0, 122.0, 123.0, 124.0]);
-
-            let price = *prices.first().unwrap_or(&0.0);
+            .unwrap_or_else(|_| {
+                vec![
+                    BigDecimal::from(120),
+                    BigDecimal::from(121),
+                    BigDecimal::from(122),
+                    BigDecimal::from(123),
+                    BigDecimal::from(124),
+                ]
+            });
+            let zero = &BigDecimal::zero();
+            let price = prices.first().unwrap_or(zero);
             return Ticker {
                 symbol: symbol.into(),
-                price,
+                price_per_share: price.clone(),
                 trend: prices,
             };
         }
@@ -52,21 +63,27 @@ impl TickerService {
         {
             Ok(stock_time_response) => {
                 let stock_time = stock_time_response.data();
-                let prices: Vec<f64> = stock_time
+                let prices: Vec<BigDecimal> = stock_time
                     .iter()
-                    .map(|time_data| time_data.close())
+                    .map(|time_data| BigDecimal::from_f64(time_data.close()).unwrap())
                     .collect();
                 prices
             }
             Err(_) => {
                 println!("Api limit reached");
-                let prices: Vec<f64> = vec![120.0, 121.0, 122.0, 123.0, 124.0];
+                let prices: Vec<BigDecimal> = vec![
+                    BigDecimal::from(120),
+                    BigDecimal::from(121),
+                    BigDecimal::from(122),
+                    BigDecimal::from(123),
+                    BigDecimal::from(124),
+                ];
                 prices
             }
         };
         return Ticker {
             symbol: symbol.into(),
-            price: stock_time_prices[0],
+            price_per_share: stock_time_prices[0].clone(),
             trend: stock_time_prices,
         };
     }
