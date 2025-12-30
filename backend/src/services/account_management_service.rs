@@ -1,5 +1,7 @@
 use crate::models::errors::trade_error::TradeError;
 use crate::models::errors::user_error::UserError;
+use bigdecimal::BigDecimal;
+use num_traits::Zero;
 use sqlx::postgres::types::PgMoney;
 use sqlx::PgPool;
 use sqlx::Row;
@@ -24,16 +26,16 @@ impl AccountManagementService {
     pub async fn reserve_funds(
         &self,
         user_id: Uuid,
-        reserve_amount: f64,
+        reserve_amount: BigDecimal,
     ) -> Result<(), TradeError> {
-        let reserve_cents = (reserve_amount * 100.0) as i64;
-        if reserve_cents <= 0 {
+        let reserve_cents = (reserve_amount * BigDecimal::from(100));
+        if reserve_cents <= BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
         let rows_affected = sqlx::query(
         "UPDATE users SET available_balance = available_balance - $1 WHERE user_id = $2 AND available_balance >= $1",
         )
-        .bind(PgMoney(reserve_cents))
+        .bind(reserve_cents)
         .bind(user_id)
         .execute(&self.db)
         .await
@@ -46,15 +48,19 @@ impl AccountManagementService {
         }
     }
 
-    pub async fn add_user_balance(&self, user_id: Uuid, amount: f64) -> Result<(), TradeError> {
-        let add_cents = (amount * 100.0) as i64;
-        if add_cents <= 0 {
+    pub async fn add_user_balance(
+        &self,
+        user_id: Uuid,
+        amount: BigDecimal,
+    ) -> Result<(), TradeError> {
+        let add_cents = amount * BigDecimal::from(100);
+        if add_cents <= BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
         let rows_affected = sqlx::query(
             "UPDATE users SET balance = balance + $1, available_balance = available_balance + $1 WHERE user_id = $2",
         )
-        .bind(PgMoney(add_cents))
+        .bind(add_cents)
         .bind(user_id)
         .execute(&self.db)
         .await
@@ -67,15 +73,19 @@ impl AccountManagementService {
         }
     }
 
-    pub async fn deduct_user_balance(&self, user_id: Uuid, amount: f64) -> Result<(), TradeError> {
-        let deduct_cents = (amount * 100.0) as i64;
-        if deduct_cents <= 0 {
+    pub async fn deduct_user_balance(
+        &self,
+        user_id: Uuid,
+        amount: BigDecimal,
+    ) -> Result<(), TradeError> {
+        let deduct_cents = amount * BigDecimal::from(100);
+        if deduct_cents <= BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
         let rows_affected = sqlx::query(
             "UPDATE users SET balance = balance - $1 WHERE user_id = $2 AND balance >= $1",
         )
-        .bind(PgMoney(deduct_cents))
+        .bind(deduct_cents)
         .bind(user_id)
         .execute(&self.db)
         .await

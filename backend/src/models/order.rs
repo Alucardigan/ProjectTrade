@@ -11,7 +11,7 @@ pub struct Order {
     pub user_id: Uuid,
     pub symbol: String,
     pub quantity: BigDecimal,
-    pub price: f64,
+    pub price_per_share: BigDecimal,
     pub order_type: OrderType, // Buy or Sell
     pub status: OrderStatus,
 }

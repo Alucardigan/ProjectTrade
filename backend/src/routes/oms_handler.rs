@@ -17,7 +17,7 @@ pub struct PlaceOrderRequest {
     pub symbol: String,
     pub quantity: BigDecimal,
     pub order_type: OrderType, // Assuming OrderType also implements Deserialize
-    pub price_buffer: f64,
+    pub price_buffer: BigDecimal,
 }
 
 //getters

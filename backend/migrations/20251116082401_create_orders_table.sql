@@ -1,6 +1,6 @@
 -- Add migration script here
 create type order_type as enum('BUY', 'SELL');
-create type order_status as enum('PENDING', 'FILLED', 'CANCELLED');
+create type order_status as enum('PENDING', 'RESERVED', 'EXECUTED', 'CANCELLED');
 CREATE TABLE orders (
     order_id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,

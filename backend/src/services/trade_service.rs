@@ -51,9 +51,9 @@ impl TradeService {
         Ok(Order {
             order_id: rec.try_get("order_id")?,
             user_id: rec.try_get("user_id")?,
-            symbol: rec.try_get("symbol")?,
+            symbol: rec.try_get("ticker")?,
             quantity: rec.try_get("quantity")?,
-            price: rec.try_get("price")?,
+            price_per_share: rec.try_get("price_per_share")?,
             order_type: OrderType::from_str(rec.try_get("order_type")?)
                 .map_err(|_| TradeError::InvalidOrderType)?,
             status: OrderStatus::from_str(order_status_str)
@@ -70,9 +70,12 @@ impl TradeService {
         if order.quantity < BigDecimal::from(0) {
             return Err(TradeError::InvalidAmount);
         }
-        let price = self.ticker_service.search_symbol(&order.symbol).await.price;
-        let total_purchase_price =
-            price * order.quantity.to_f64().ok_or(TradeError::InvalidAmount)?;
+        let price = self
+            .ticker_service
+            .search_symbol(&order.symbol)
+            .await
+            .price_per_share;
+        let total_purchase_price = &price * &order.quantity;
         match order.order_type {
             OrderType::Buy => {
                 self.account_management_service
@@ -91,7 +94,7 @@ impl TradeService {
                     .await?;
             }
         }
-        sqlx::query("UPDATE orders SET status = '$2' WHERE order_id = $1")
+        sqlx::query("UPDATE orders SET status = $2 WHERE order_id = $1")
             .bind(order_id)
             .bind(OrderStatus::Executed.to_string())
             .execute(&self.db)
@@ -112,9 +115,9 @@ impl TradeService {
             orders.push(Order {
                 order_id: rec.try_get("order_id")?,
                 user_id: rec.try_get("user_id")?,
-                symbol: rec.try_get("symbol")?,
+                symbol: rec.try_get("ticker")?,
                 quantity: rec.try_get("quantity")?,
-                price: rec.try_get("price")?,
+                price_per_share: rec.try_get("price_per_share")?,
                 order_type: OrderType::from_str(rec.try_get("order_type")?)
                     .map_err(|_| TradeError::InvalidOrderType)?,
                 status: OrderStatus::from_str(rec.try_get("status")?)
@@ -136,7 +139,12 @@ impl TradeService {
                     Ok(pending_orders) => {
                         println!("Pending orders: {}", pending_orders.len());
                         for order in pending_orders {
-                            self.execute_order(order.order_id).await?;
+                            match self.execute_order(order.order_id).await {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    println!("Failed to execute order: {:?}", e);
+                                }
+                            }
                         }
                     }
                     Err(e) => {
