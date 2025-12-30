@@ -1,27 +1,32 @@
 use crate::app_state;
+use crate::routes::account_handler::{add_to_user_balance, get_account_balance, withdraw_funds};
 use crate::routes::health::health;
 use crate::routes::middleware::auth0_middleware;
 use crate::routes::oms_handler::{
     cancel_order, get_order, get_order_status, get_orders, place_order,
 };
+use crate::routes::portfolio_handler::get_portfolio;
 use crate::routes::user_handler::{auth0_callback, login_user};
 use crate::{app_state::AppState, routes::ticker_handler::get_ticker};
 use axum::middleware::from_fn_with_state;
-use axum::routing::post;
+use axum::routing::{delete, post};
 use axum::{routing::get, Router};
 
 pub fn create_router(app_state: AppState) -> Router<AppState> {
     let public_routes = Router::new()
         .route("/tickers/:symbol", get(get_ticker))
-        .route("/login_user", post(login_user))
+        .route("/auth/login", post(login_user))
         .route("/health", get(health))
-        .route("/auth_callback", get(auth0_callback));
+        .route("/auth/callback", get(auth0_callback));
     let private_routes = Router::new()
+        .route("/portfolio", get(get_portfolio))
+        .route("/account", get(get_account_balance))
+        .route("/account/withdrawals", post(withdraw_funds))
+        .route("/account/deposits", post(add_to_user_balance))
         .route("/orders", get(get_orders))
-        .route("/place_order", post(place_order))
-        .route("/cancel_order/:order_id", post(cancel_order))
-        .route("/order_status/:order_id", get(get_order_status))
-        .route("/order/:order_id", get(get_order))
+        .route("/orders/:order_id", get(get_order))
+        .route("/orders", post(place_order))
+        .route("/orders/:order_id", delete(cancel_order))
         .layer(from_fn_with_state(app_state, auth0_middleware));
     Router::new().merge(public_routes).merge(private_routes)
 }

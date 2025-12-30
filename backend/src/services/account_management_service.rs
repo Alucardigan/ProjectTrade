@@ -15,7 +15,10 @@ impl AccountManagementService {
     pub fn new(db: PgPool) -> Self {
         Self { db }
     }
-    pub async fn get_user_balance(&self, user_id: Uuid) -> Result<(PgMoney, PgMoney), UserError> {
+    pub async fn get_user_balance(
+        &self,
+        user_id: Uuid,
+    ) -> Result<(BigDecimal, BigDecimal), UserError> {
         let rec = sqlx::query("SELECT balance,available_balance FROM users WHERE user_id = $1")
             .bind(user_id)
             .fetch_one(&self.db)
