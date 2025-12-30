@@ -23,9 +23,13 @@ pub struct AppState {
 impl AppState {
     pub fn new(db: PgPool, api_key: &str) -> Self {
         let ticker_service = Arc::new(TickerService::new(api_key, db.clone()));
-        let portfolio_service = Arc::new(PortfolioManagementService::new(db.clone()));
+
         let account_management_service = Arc::new(AccountManagementService::new(db.clone()));
         let authentication_client = Arc::new(AuthorizationClient::new());
+        let portfolio_service = Arc::new(PortfolioManagementService::new(
+            db.clone(),
+            ticker_service.clone(),
+        ));
         let user_service = Arc::new(UserService::new(
             db.clone(),
             account_management_service.clone(),
