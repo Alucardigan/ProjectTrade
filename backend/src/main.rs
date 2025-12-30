@@ -13,6 +13,7 @@ async fn main() -> Result<()> {
     let _db = PgPool::connect(&db_url).await?;
 
     let app_state = AppState::new(_db, "mock");
+    let _task_handles = app_state.start_background_processes();
     let app = create_router(app_state.clone()).with_state(app_state);
     let listener = tokio::net::TcpListener::bind("localhost:3000").await?;
     println!(

@@ -1,4 +1,5 @@
 use crate::authentication::basic_client::AuthorizationClient;
+use crate::models::errors::trade_error::TradeError;
 use crate::services::account_management_service::AccountManagementService;
 use crate::services::order_management_service::OrderManagementService;
 use crate::services::portfolio_management_service::PortfolioManagementService;
@@ -56,5 +57,10 @@ impl AppState {
             account_management_service,
             order_management_service,
         }
+    }
+    pub fn start_background_processes(
+        &self,
+    ) -> Vec<tokio::task::JoinHandle<Result<(), TradeError>>> {
+        vec![self.trade_service.clone().create_order_processor()]
     }
 }

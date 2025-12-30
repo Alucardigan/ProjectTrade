@@ -24,6 +24,7 @@ pub struct TradeService {
 }
 #[allow(dead_code)]
 impl TradeService {
+    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 10;
     pub fn new(
         db: PgPool,
         ticker_service: Arc<TickerService>,
@@ -90,6 +91,59 @@ impl TradeService {
                     .await?;
             }
         }
+        sqlx::query("UPDATE orders SET status = '$2' WHERE order_id = $1")
+            .bind(order_id)
+            .bind(OrderStatus::Executed.to_string())
+            .execute(&self.db)
+            .await
+            .map_err(|e| TradeError::DatabaseError(e))?;
         Ok(())
+    }
+    pub async fn get_pending_orders(&self) -> Result<Vec<Order>, TradeError> {
+        let rec = sqlx::query(
+            "SELECT * FROM orders WHERE status =$1::order_status ORDER BY created_at ASC",
+        )
+        .bind(OrderStatus::Pending.to_string())
+        .fetch_all(&self.db)
+        .await
+        .map_err(|e| TradeError::DatabaseError(e))?;
+        let mut orders = Vec::new();
+        for rec in rec {
+            orders.push(Order {
+                order_id: rec.try_get("order_id")?,
+                user_id: rec.try_get("user_id")?,
+                symbol: rec.try_get("symbol")?,
+                quantity: rec.try_get("quantity")?,
+                price: rec.try_get("price")?,
+                order_type: OrderType::from_str(rec.try_get("order_type")?)
+                    .map_err(|_| TradeError::InvalidOrderType)?,
+                status: OrderStatus::from_str(rec.try_get("status")?)
+                    .map_err(|_| TradeError::InvalidOrderStatus)?,
+            });
+        }
+        Ok(orders)
+    }
+    pub fn create_order_processor(
+        self: Arc<Self>,
+    ) -> tokio::task::JoinHandle<Result<(), TradeError>> {
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
+                Self::ORDER_PROCESSOR_INTERVAL_SECS,
+            ));
+            loop {
+                interval.tick().await;
+                match self.get_pending_orders().await {
+                    Ok(pending_orders) => {
+                        println!("Pending orders: {}", pending_orders.len());
+                        for order in pending_orders {
+                            self.execute_order(order.order_id).await?;
+                        }
+                    }
+                    Err(e) => {
+                        println!("Failed to fetch pending orders: {:?}", e);
+                    }
+                }
+            }
+        })
     }
 }

@@ -35,7 +35,7 @@ pub async fn get_order_status(
 
 pub async fn get_orders(
     State(app_state): State<AppState>,
-    Path(user_id): Path<Uuid>,
+    Extension(user_id): Extension<Uuid>,
 ) -> Result<Json<Vec<Order>>, ApiError> {
     let orders = app_state
         .order_management_service
