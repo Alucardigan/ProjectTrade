@@ -12,7 +12,7 @@ pub struct GetAccountBalanceResponse {
     available_balance: BigDecimal,
 }
 #[derive(Serialize, Deserialize)]
-pub struct AddToUserBalanceRequest {
+pub struct ChangeToUserBalanceRequest {
     amount: BigDecimal,
 }
 pub async fn get_account_balance(
@@ -33,7 +33,7 @@ pub async fn get_account_balance(
 pub async fn add_to_user_balance(
     State(app_state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
-    Json(request_body): Json<AddToUserBalanceRequest>,
+    Json(request_body): Json<ChangeToUserBalanceRequest>,
 ) -> Result<(), ApiError> {
     app_state
         .account_management_service
@@ -45,7 +45,7 @@ pub async fn add_to_user_balance(
 pub async fn withdraw_funds(
     State(app_state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
-    Json(request_body): Json<AddToUserBalanceRequest>,
+    Json(request_body): Json<ChangeToUserBalanceRequest>,
 ) -> Result<(), ApiError> {
     app_state
         .account_management_service
