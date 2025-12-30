@@ -28,12 +28,13 @@ impl PortfolioManagementService {
         for rec in database_portfolio {
             let ticker = self.ticker_service.search_symbol(rec.get("ticker")).await;
             let quantity = rec.get("quantity");
-            let calculated_total_profit = &quantity * ticker.price_per_share;
+            let total_money_spent: BigDecimal = rec.get("total_money_spent");
+            let calculated_total_profit = (&quantity * ticker.price_per_share) - &total_money_spent;
             let portfolio_item = PortfolioTicker {
                 user_id: rec.get("user_id"),
                 ticker: rec.get("ticker"),
                 quantity: quantity,
-                total_money_spent: rec.get("total_money_spent"),
+                total_money_spent: total_money_spent,
                 total_profit: calculated_total_profit,
                 created_at: rec.get("created_at"),
             };
