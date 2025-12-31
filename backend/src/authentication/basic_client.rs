@@ -43,7 +43,11 @@ impl AuthorizationClient {
                 TokenUrl::new(env::var("AUTH_DOMAIN").unwrap() + "/oauth/token").unwrap(),
             )
             .set_redirect_uri(
-                RedirectUrl::new(env::var("FRONTEND_URL").unwrap() + "/auth_callback").unwrap(),
+                RedirectUrl::new(
+                    env::var("BACKEND_URL").unwrap_or("http://localhost:3000".to_string())
+                        + "/auth/callback",
+                )
+                .unwrap(),
             );
         let http_client = reqwest::ClientBuilder::new()
             // Following redirects opens the client up to SSRF vulnerabilities.
