@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:146.0) Gecko/20100101 Firefox/146.0" version="29.2.6" pages="2">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:146.0) Gecko/20100101 Firefox/146.0" version="29.2.6" pages="3">
   <diagram name="Application architecture" id="5BFPlF3abbRsRiAyEwHJ">
     <mxGraphModel dx="1360" dy="795" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
@@ -105,7 +105,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="h-XKw-uynh07UTr-_C_w" name="DB_table_relations">
-    <mxGraphModel dx="1236" dy="723" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -433,6 +433,50 @@
             <mxPoint x="710" y="530" as="sourcePoint" />
             <mxPoint x="580" y="240" as="targetPoint" />
           </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="RcSqR86udPhL0LrM9erY" name="Frontend wireframes">
+    <mxGraphModel dx="1360" dy="795" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="400" width="730" x="60" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;" value="Nav bar" vertex="1">
+          <mxGeometry height="40" width="730" x="60" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Portfolio" vertex="1">
+          <mxGeometry height="30" width="60" x="390" y="65" as="geometry" />
+        </mxCell>
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="170" width="200" x="70" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="100" width="200" x="70" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="BIG NUMBER" vertex="1">
+          <mxGeometry height="40" width="120" x="140" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-7" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Total value:" vertex="1">
+          <mxGeometry height="30" width="60" x="80" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="TodayUP%" vertex="1">
+          <mxGeometry height="20" width="120" x="140" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="All time up%" vertex="1">
+          <mxGeometry height="20" width="120" x="140" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-10" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Stock breakdown" vertex="1">
+          <mxGeometry height="30" width="60" x="130" y="245" as="geometry" />
+        </mxCell>
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Growth graph" vertex="1">
+          <mxGeometry height="170" width="475" x="305" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="bXsH5fu2zrEkgILPs0XO-12" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Asset performance breakdown" vertex="1">
+          <mxGeometry height="130" width="710" x="70" y="300" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
