@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { Button } from "@/components/retroui/Button";
 
 export default function LandingPage() {
     const navigate = useNavigate();
@@ -22,12 +23,12 @@ export default function LandingPage() {
                         <p className="text-xs text-blue-600 mt-1">Your trading session has been established.</p>
                     </div>
 
-                    <button
-                        onClick={() => navigate('/')}
-                        className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-md"
+                    <Button
+                        onClick={() => navigate('/portfolio')}
+                        className="w-full"
                     >
-                        Return to Home
-                    </button>
+                        Go to Portfolio
+                    </Button>
                 </div>
             </div>
         </div>
