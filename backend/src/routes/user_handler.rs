@@ -88,7 +88,7 @@ pub async fn auth0_callback(
         .add(session_id_cookie);
     Ok((
         cookies,
-        Redirect::to(&(env::var("FRONTEND_URL").unwrap() + "/landing_page")),
+        Redirect::to(&(env::var("FRONTEND_URL").unwrap() + "/portfolio")),
     ))
 }
 
