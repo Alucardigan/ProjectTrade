@@ -3,6 +3,9 @@ import { PortfolioSummary } from "@/components/CustomComponents/PortfolioSummary
 import { HoldingsGrid } from "@/components/CustomComponents/HoldingsGrid";
 import type { PortfolioResponse } from "../RequestResponseModels/Portfolio_Response";
 import { useMemo } from "react";
+import { Button } from "@/components/retroui/Button";
+import { RefreshCw, Plus, Minus } from "lucide-react";
+import { DashboardNavbar } from "@/components/CustomComponents/DashboardNavbar";
 
 // Mock Data
 const MOCK_PORTFOLIO: PortfolioResponse = {
@@ -65,18 +68,40 @@ const PortfolioPage = () => {
     const gainPercentage = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6 md:p-12 font-sans">
-            <div className="max-w-6xl mx-auto space-y-8">
+        <div className="min-h-screen bg-yellow-50/50 font-sans">
+            <DashboardNavbar />
+            <div className="max-w-6xl mx-auto space-y-8 p-6 md:p-12">
 
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b-4 border-black pb-6">
                     <div>
-                        <Text as="h1" className="text-gray-900 tracking-tight">My Portfolio</Text>
-                        <Text className="text-gray-500 mt-1">Track your market performance</Text>
+                        <Text as="h1" className="text-5xl font-black text-gray-900 tracking-tight">My Portfolio</Text>
+                        <Text className="text-gray-600 font-medium mt-2 text-lg">Track your market performance</Text>
                     </div>
-                    <div className="bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
-                        <Text className="text-sm text-gray-500 font-medium">Last Updated</Text>
-                        <Text className="text-gray-900 font-mono text-sm">{new Date().toLocaleTimeString()}</Text>
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <div className="flex gap-3">
+                            <Button
+                                onClick={() => window.location.href = '/buy'}
+                                className="bg-green-500 hover:bg-green-600 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all font-bold"
+                            >
+                                <Plus className="w-5 h-5 mr-2" /> Buy Asset
+                            </Button>
+                            <Button
+                                className="bg-red-500 hover:bg-red-600 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all font-bold"
+                            >
+                                <Minus className="w-5 h-5 mr-2" /> Sell Asset
+                            </Button>
+                        </div>
+                        <div className="h-8 w-0.5 bg-gray-300 hidden sm:block"></div>
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white px-4 py-2 rounded border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                <Text className="text-xs text-gray-500 font-bold uppercase">Last Updated</Text>
+                                <Text className="text-gray-900 font-mono font-bold">{new Date().toLocaleTimeString()}</Text>
+                            </div>
+                            <Button variant="default" size="icon" onClick={() => window.location.reload()}>
+                                <RefreshCw className="w-5 h-5" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
