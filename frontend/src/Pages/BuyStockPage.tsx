@@ -14,19 +14,33 @@ const BuyStockPage = () => {
     const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Mock function to simulate fetching price
-    const handleTickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.toUpperCase();
-        setTicker(value);
+    const recommendations = [
+        { symbol: "NVDA", name: "NVIDIA Corp", price: 485.09, change: "+2.5%", isPositive: true },
+        { symbol: "MSFT", name: "Microsoft", price: 375.25, change: "+1.2%", isPositive: true },
+        { symbol: "GOOGL", name: "Alphabet Inc", price: 138.50, change: "-0.5%", isPositive: false },
+        { symbol: "AMZN", name: "Amazon.com", price: 145.20, change: "+0.8%", isPositive: true },
+    ];
 
+    const updateTicker = (value: string) => {
+        setTicker(value);
         // Mock price fetch logic
         if (value.length >= 3) {
-            // Random price between 10 and 500
-            const mockPrice = Math.floor(Math.random() * 490) + 10;
-            setEstimatedPrice(mockPrice);
+            // Check if it's one of our recommendations to use the "real" mock price
+            const rec = recommendations.find(r => r.symbol === value);
+            if (rec) {
+                setEstimatedPrice(rec.price);
+            } else {
+                // Random price between 10 and 500
+                const mockPrice = Math.floor(Math.random() * 490) + 10;
+                setEstimatedPrice(mockPrice);
+            }
         } else {
             setEstimatedPrice(null);
         }
+    };
+
+    const handleTickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        updateTicker(e.target.value.toUpperCase());
     };
 
     const totalCost = estimatedPrice && quantity ? estimatedPrice * Number(quantity) : 0;
@@ -41,7 +55,7 @@ const BuyStockPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-yellow-50/50 font-sans">
+        <div className="min-h-screen bg-yellow-50/50 font-sans pb-12">
             <DashboardNavbar />
             <div className="max-w-2xl mx-auto p-6 md:p-12">
                 <div className="mb-8">
@@ -56,7 +70,7 @@ const BuyStockPage = () => {
                     <Text className="text-gray-600 font-medium mt-2">Search for a stock and add it to your portfolio.</Text>
                 </div>
 
-                <Card className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <Card className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-12">
                     <Card.Content className="p-8 space-y-8">
 
                         {/* Ticker Input */}
@@ -136,6 +150,38 @@ const BuyStockPage = () => {
 
                     </Card.Content>
                 </Card>
+
+                {/* Recommendations Section */}
+                <div>
+                    <Text as="h2" className="text-2xl font-black text-gray-900 mb-6 flex items-center gap-2">
+                        <TrendingUp className="w-6 h-6" /> Trending Assets
+                    </Text>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {recommendations.map((rec) => (
+                            <Card
+                                key={rec.symbol}
+                                className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer group"
+                                onClick={() => updateTicker(rec.symbol)}
+                            >
+                                <Card.Content className="p-5 flex justify-between items-center">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Text className="font-black text-xl group-hover:text-blue-600 transition-colors">{rec.symbol}</Text>
+                                            <Badge variant={rec.isPositive ? "success" : "destructive"} className="text-[10px] px-1.5 py-0 h-5 border border-black">
+                                                {rec.change}
+                                            </Badge>
+                                        </div>
+                                        <Text className="text-gray-500 font-medium text-xs uppercase tracking-wide">{rec.name}</Text>
+                                    </div>
+                                    <div className="text-right">
+                                        <Text className="font-bold text-lg">${rec.price.toFixed(2)}</Text>
+                                        <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Select</div>
+                                    </div>
+                                </Card.Content>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );
