@@ -13,6 +13,7 @@ use sqlx::Row;
 use sqlx::{types::BigDecimal, PgPool};
 use std::str::FromStr;
 use std::sync::Arc;
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -126,6 +127,7 @@ impl TradeService {
         }
         Ok(orders)
     }
+    #[tracing::instrument(skip(self))]
     pub fn create_order_processor(
         self: Arc<Self>,
     ) -> tokio::task::JoinHandle<Result<(), TradeError>> {
@@ -137,18 +139,18 @@ impl TradeService {
                 interval.tick().await;
                 match self.get_pending_orders().await {
                     Ok(pending_orders) => {
-                        println!("Pending orders: {}", pending_orders.len());
+                        debug!("Pending orders: {}", pending_orders.len());
                         for order in pending_orders {
                             match self.execute_order(order.order_id).await {
                                 Ok(_) => {}
                                 Err(e) => {
-                                    println!("Failed to execute order: {:?}", e);
+                                    warn!("Failed to execute order: {:?}", e);
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        println!("Failed to fetch pending orders: {:?}", e);
+                        warn!("Failed to fetch pending orders: {:?}", e);
                     }
                 }
             }

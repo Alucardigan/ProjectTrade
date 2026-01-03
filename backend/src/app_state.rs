@@ -23,7 +23,6 @@ pub struct AppState {
 impl AppState {
     pub fn new(db: PgPool, api_key: &str) -> Self {
         let ticker_service = Arc::new(TickerService::new(api_key, db.clone()));
-
         let account_management_service = Arc::new(AccountManagementService::new(db.clone()));
         let authentication_client = Arc::new(AuthorizationClient::new());
         let portfolio_service = Arc::new(PortfolioManagementService::new(
@@ -51,7 +50,7 @@ impl AppState {
             account_management_service.clone(),
             portfolio_service.clone(),
         ));
-
+        tracing::info!("App state created & all services are operational");
         Self {
             db,
             user_service,
@@ -65,6 +64,7 @@ impl AppState {
     pub fn start_background_processes(
         &self,
     ) -> Vec<tokio::task::JoinHandle<Result<(), TradeError>>> {
+        tracing::info!("Starting background processes");
         vec![self.trade_service.clone().create_order_processor()]
     }
 }
