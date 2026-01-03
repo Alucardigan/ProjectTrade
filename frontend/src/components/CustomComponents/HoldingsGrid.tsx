@@ -2,7 +2,7 @@ import { Card } from "@/components/retroui/Card";
 import { Text } from "@/components/retroui/Text";
 import { Badge } from "@/components/retroui/Badge";
 import { ArrowUpRight, ArrowDownRight, Layers } from "lucide-react";
-import type { PortfolioTicker } from "../../RequestResponseModels/Portfolio_Response";
+import type { PortfolioTicker } from "../../types/Portfolio_Response";
 
 interface HoldingsGridProps {
     portfolio: PortfolioTicker[];

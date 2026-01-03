@@ -1,71 +1,60 @@
 import { Text } from "@/components/retroui/Text";
 import { PortfolioSummary } from "@/components/CustomComponents/PortfolioSummary";
 import { HoldingsGrid } from "@/components/CustomComponents/HoldingsGrid";
-import type { PortfolioResponse } from "../RequestResponseModels/Portfolio_Response";
 import { useMemo } from "react";
 import { Button } from "@/components/retroui/Button";
-import { RefreshCw, Plus, Minus } from "lucide-react";
+import { RefreshCw, Plus, Minus, Loader2 } from "lucide-react";
 import { DashboardNavbar } from "@/components/CustomComponents/DashboardNavbar";
-
-// Mock Data
-const MOCK_PORTFOLIO: PortfolioResponse = {
-    user_id: "user-123",
-    portfolio: [
-        {
-            user_id: "user-123",
-            ticker: "AAPL",
-            quantity: "15.5",
-            total_money_spent: "2325.00", // Avg $150
-            total_profit: "450.50",
-            created_at: new Date().toISOString()
-        },
-        {
-            user_id: "user-123",
-            ticker: "TSLA",
-            quantity: "10",
-            total_money_spent: "2500.00", // Avg $250
-            total_profit: "-320.00",
-            created_at: new Date().toISOString()
-        },
-        {
-            user_id: "user-123",
-            ticker: "NVDA",
-            quantity: "5",
-            total_money_spent: "2000.00", // Avg $400
-            total_profit: "1200.00",
-            created_at: new Date().toISOString()
-        },
-        {
-            user_id: "user-123",
-            ticker: "MSFT",
-            quantity: "8",
-            total_money_spent: "2400.00", // Avg $300
-            total_profit: "160.00",
-            created_at: new Date().toISOString()
-        }
-    ]
-};
+import { useQuery } from "@tanstack/react-query";
+import { fetchPortfolio } from "../api/portfolio";
 
 const PortfolioPage = () => {
-    // Use mock data directly
-    const portfolioResponse = MOCK_PORTFOLIO;
+    const { data: portfolioResponse, isLoading, isError, refetch } = useQuery({
+        queryKey: ['portfolio'],
+        queryFn: fetchPortfolio,
+    });
 
     const totalValue = useMemo(() => {
+        if (!portfolioResponse) return 0;
         return portfolioResponse.portfolio.reduce((acc, item) =>
             acc + Number(item.total_money_spent) + Number(item.total_profit), 0);
     }, [portfolioResponse]);
 
     const totalGain = useMemo(() => {
+        if (!portfolioResponse) return 0;
         return portfolioResponse.portfolio.reduce((acc, item) =>
             acc + Number(item.total_profit), 0);
     }, [portfolioResponse]);
 
     const totalCost = useMemo(() => {
+        if (!portfolioResponse) return 0;
         return portfolioResponse.portfolio.reduce((acc, item) =>
             acc + Number(item.total_money_spent), 0);
     }, [portfolioResponse]);
 
     const gainPercentage = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-yellow-50/50 font-sans flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="w-12 h-12 animate-spin text-black" />
+                    <Text className="text-xl font-bold">Loading Portfolio...</Text>
+                </div>
+            </div>
+        );
+    }
+
+    if (isError) {
+        return (
+            <div className="min-h-screen bg-yellow-50/50 font-sans flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <Text className="text-xl font-bold text-red-600">Error loading portfolio</Text>
+                    <Button onClick={() => refetch()}>Try Again</Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-yellow-50/50 font-sans">
@@ -98,7 +87,7 @@ const PortfolioPage = () => {
                                 <Text className="text-xs text-gray-500 font-bold uppercase">Last Updated</Text>
                                 <Text className="text-gray-900 font-mono font-bold">{new Date().toLocaleTimeString()}</Text>
                             </div>
-                            <Button variant="default" size="icon" onClick={() => window.location.reload()}>
+                            <Button variant="default" size="icon" onClick={() => refetch()}>
                                 <RefreshCw className="w-5 h-5" />
                             </Button>
                         </div>
@@ -114,7 +103,7 @@ const PortfolioPage = () => {
                 />
 
                 {/* Holdings List */}
-                <HoldingsGrid portfolio={portfolioResponse.portfolio} />
+                {portfolioResponse && <HoldingsGrid portfolio={portfolioResponse.portfolio} />}
             </div>
         </div>
     );
