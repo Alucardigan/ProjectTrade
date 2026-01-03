@@ -25,6 +25,8 @@ url = "2.5"
 cookie = "0.18.1"
 axum-extra = {version = "0.9", features = ["cookie"]}
 chrono = "0.4.42"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 [lib]
 name = "backend"
 path = "src/lib.rs"
