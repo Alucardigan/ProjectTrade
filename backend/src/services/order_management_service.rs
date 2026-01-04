@@ -47,6 +47,7 @@ impl OrderManagementService {
     }
 
     /// Place a new order, reserve funds, and add to queue
+    #[tracing::instrument(skip(self))]
     pub async fn place_order(
         &self,
         user_id: Uuid,
@@ -113,6 +114,7 @@ impl OrderManagementService {
         })
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_order_status(
         &self,
         order_id: Uuid,
@@ -130,6 +132,7 @@ impl OrderManagementService {
         Ok(OrderStatus::from_str(order_status_str).map_err(|_e| TradeError::InvalidOrderStatus)?)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn cancel_order(&self, order_id: Uuid, user_id: Uuid) -> Result<(), TradeError> {
         let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1 AND user_id = $2")
             .bind(order_id)
@@ -152,6 +155,7 @@ impl OrderManagementService {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_orders(&self, user_id: Uuid) -> Result<Vec<Order>, TradeError> {
         let rec = sqlx::query("SELECT * FROM orders WHERE user_id = $1")
             .bind(user_id)
@@ -177,6 +181,7 @@ impl OrderManagementService {
         Ok(orders)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_order(&self, order_id: Uuid, user_id: Uuid) -> Result<Order, TradeError> {
         let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1 AND user_id = $2")
             .bind(order_id)

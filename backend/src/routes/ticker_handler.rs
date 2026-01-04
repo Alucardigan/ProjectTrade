@@ -5,6 +5,7 @@ use axum::{
     Json,
 };
 
+#[tracing::instrument(skip(app_state))]
 pub async fn get_ticker(
     State(app_state): State<AppState>,
     Path(symbol): Path<String>,

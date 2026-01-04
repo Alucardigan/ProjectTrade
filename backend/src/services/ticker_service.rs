@@ -24,6 +24,7 @@ impl TickerService {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn search_symbol(&self, symbol: &str) -> Ticker {
         if self.api_client.get_api_key() == "mock" {
             let prices = sqlx::query(
@@ -88,6 +89,7 @@ impl TickerService {
         };
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn search_multiple_symbols(&self, symbols: Vec<&str>) {
         let mut tickers: Vec<Ticker> = vec![];
         for symbol in symbols {
