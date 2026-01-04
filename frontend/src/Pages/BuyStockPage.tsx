@@ -4,15 +4,28 @@ import { Card } from "@/components/retroui/Card";
 import { Text } from "@/components/retroui/Text";
 import { Button } from "@/components/retroui/Button";
 import { Badge } from "@/components/retroui/Badge";
-import { Search, DollarSign, ArrowRight, TrendingUp, AlertCircle } from "lucide-react";
+import { Search, ArrowRight, TrendingUp, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import { placeOrder } from "../api/orderManagement";
+import { OrderType } from "../types/OrderType";
 
 const BuyStockPage = () => {
     const navigate = useNavigate();
     const [ticker, setTicker] = useState("");
     const [quantity, setQuantity] = useState("");
     const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+
+    const mutation = useMutation({
+        mutationFn: placeOrder,
+        onSuccess: () => {
+            navigate('/portfolio');
+        },
+        onError: (error) => {
+            console.error("Failed to place order:", error);
+            alert("Failed to place order. Please try again.");
+        }
+    });
 
     const recommendations = [
         { symbol: "NVDA", name: "NVIDIA Corp", price: 485.09, change: "+2.5%", isPositive: true },
@@ -46,12 +59,14 @@ const BuyStockPage = () => {
     const totalCost = estimatedPrice && quantity ? estimatedPrice * Number(quantity) : 0;
 
     const handleBuy = () => {
-        setIsLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false);
-            navigate('/portfolio');
-        }, 1500);
+        if (!ticker || !quantity) return;
+
+        mutation.mutate({
+            symbol: ticker,
+            quantity: Number(quantity),
+            order_type: OrderType.Buy,
+            price_buffer: 0
+        });
     };
 
     return (
@@ -133,10 +148,10 @@ const BuyStockPage = () => {
                         {/* Action Button */}
                         <Button
                             onClick={handleBuy}
-                            disabled={!ticker || !quantity || isLoading}
+                            disabled={!ticker || !quantity || mutation.isPending}
                             className="w-full py-6 text-xl bg-green-500 hover:bg-green-600 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
                         >
-                            {isLoading ? "Processing..." : (
+                            {mutation.isPending ? "Processing..." : (
                                 <span className="flex items-center justify-center gap-2">
                                     Confirm Purchase <ArrowRight className="w-6 h-6" />
                                 </span>
