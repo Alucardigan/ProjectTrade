@@ -15,6 +15,7 @@ impl AccountManagementService {
     pub fn new(db: PgPool) -> Self {
         Self { db }
     }
+    #[tracing::instrument(skip(self))]
     pub async fn get_user_balance(
         &self,
         user_id: Uuid,
@@ -26,6 +27,7 @@ impl AccountManagementService {
         Ok((rec.get("balance"), rec.get("available_balance")))
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn reserve_funds(
         &self,
         user_id: Uuid,
@@ -51,6 +53,7 @@ impl AccountManagementService {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn add_user_balance(
         &self,
         user_id: Uuid,
@@ -76,6 +79,7 @@ impl AccountManagementService {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn deduct_user_balance(
         &self,
         user_id: Uuid,

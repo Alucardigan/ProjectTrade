@@ -40,6 +40,8 @@ impl UserService {
             authentication_client,
         }
     }
+
+    #[tracing::instrument(skip(self))]
     pub async fn upsert_user(
         &self,
         user_id: Uuid,
@@ -69,6 +71,7 @@ impl UserService {
     }
 
     //should this function exist?
+    #[tracing::instrument(skip(self))]
     pub async fn get_user_uuid(&self, username: &str) -> Result<Uuid, UserError> {
         let rec = sqlx::query("SELECT user_id FROM users WHERE username = $1")
             .bind(username)
@@ -77,10 +80,13 @@ impl UserService {
             .map_err(|e| UserError::DatabaseError(e))?;
         Ok(rec.try_get("user_id")?)
     }
+
+    #[tracing::instrument(skip(self))]
     pub async fn login_user(&self) -> Result<Auth0LoginResponse, UserError> {
         let auth0_login_response = self.authentication_client.auth0_login().await;
         Ok(auth0_login_response)
     }
+    #[tracing::instrument(skip(self))]
     pub async fn login_callback(
         &self,
         code: String,

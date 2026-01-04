@@ -18,6 +18,7 @@ impl PortfolioManagementService {
     pub fn new(db: PgPool, ticker_service: Arc<TickerService>) -> Self {
         Self { db, ticker_service }
     }
+    #[tracing::instrument(skip(self))]
     pub async fn get_portfolio(&self, user_id: Uuid) -> Result<Vec<PortfolioTicker>, TradeError> {
         let database_portfolio = sqlx::query("SELECT * FROM portfolio WHERE user_id = $1")
             .bind(user_id)
@@ -42,6 +43,8 @@ impl PortfolioManagementService {
         }
         Ok(user_portfolio)
     }
+
+    #[tracing::instrument(skip(self))]
     pub async fn check_holdings(
         &self,
         user_id: Uuid,
@@ -59,6 +62,7 @@ impl PortfolioManagementService {
         Ok(rec.get("quantity"))
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn add_to_portfolio(
         &self,
         user_id: Uuid,
@@ -78,6 +82,7 @@ impl PortfolioManagementService {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn remove_from_portfolio(
         &self,
         user_id: Uuid,

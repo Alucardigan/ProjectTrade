@@ -40,6 +40,7 @@ impl TradeService {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_order(&self, order_id: Uuid) -> Result<Order, TradeError> {
         let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1")
             .bind(order_id)
@@ -62,6 +63,7 @@ impl TradeService {
         })
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn execute_order(&self, order_id: Uuid) -> Result<(), TradeError> {
         let order = self.get_order(order_id).await?;
         //validation checks
@@ -103,6 +105,8 @@ impl TradeService {
             .map_err(|e| TradeError::DatabaseError(e))?;
         Ok(())
     }
+
+    #[tracing::instrument(skip(self))]
     pub async fn get_pending_orders(&self) -> Result<Vec<Order>, TradeError> {
         let rec = sqlx::query(
             "SELECT * FROM orders WHERE status =$1::order_status ORDER BY created_at ASC",
@@ -127,6 +131,7 @@ impl TradeService {
         }
         Ok(orders)
     }
+
     #[tracing::instrument(skip(self))]
     pub fn create_order_processor(
         self: Arc<Self>,

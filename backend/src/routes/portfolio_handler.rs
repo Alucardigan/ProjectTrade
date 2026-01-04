@@ -15,6 +15,7 @@ pub struct PortfolioResponse {
     portfolio: Vec<PortfolioTicker>,
 }
 
+#[tracing::instrument(skip(app_state))]
 pub async fn get_portfolio(
     State(app_state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
