@@ -14,24 +14,13 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 //request and response bodies
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct PlaceOrderRequest {
     pub symbol: String,
     pub quantity: BigDecimal,
     pub order_type: OrderType, // Assuming OrderType also implements Deserialize
     pub price_buffer: BigDecimal,
 }
-impl Debug for PlaceOrderRequest {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PlaceOrderRequest")
-            .field("symbol", &self.symbol)
-            .field("quantity", &self.quantity)
-            .field("order_type", &self.order_type)
-            .field("price_buffer", &self.price_buffer)
-            .finish()
-    }
-}
-
 //getters
 pub async fn get_order_status(
     State(app_state): State<AppState>,
