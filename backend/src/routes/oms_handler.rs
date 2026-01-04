@@ -62,8 +62,8 @@ pub async fn place_order(
     State(app_state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
     Json(request_body): Json<PlaceOrderRequest>,
-) -> Result<Json<Order>, ApiError> {
-    let order = app_state
+) -> Result<(), ApiError> {
+    app_state
         .order_management_service
         .place_order(
             user_id,
@@ -73,7 +73,7 @@ pub async fn place_order(
             request_body.price_buffer,
         )
         .await?;
-    Ok(Json(order))
+    Ok(())
 }
 
 #[tracing::instrument(skip(app_state))]

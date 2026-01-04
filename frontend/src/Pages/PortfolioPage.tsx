@@ -7,30 +7,35 @@ import { RefreshCw, Plus, Minus, Loader2 } from "lucide-react";
 import { DashboardNavbar } from "@/components/CustomComponents/DashboardNavbar";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPortfolio } from "../api/portfolio";
+import type { PortfolioResponse } from "../types/Portfolio_Response";
+
+const defaultPortfolioResponse: PortfolioResponse = {
+    user_id: "guest",
+    portfolio: []
+};
 
 const PortfolioPage = () => {
-    const { data: portfolioResponse, isLoading, isError, refetch } = useQuery({
+    const { data: portfolioResponse, isLoading, refetch } = useQuery({
         queryKey: ['portfolio'],
         queryFn: fetchPortfolio,
     });
 
+    const activePortfolio = portfolioResponse || defaultPortfolioResponse;
+
     const totalValue = useMemo(() => {
-        if (!portfolioResponse) return 0;
-        return portfolioResponse.portfolio.reduce((acc, item) =>
+        return activePortfolio.portfolio.reduce((acc, item) =>
             acc + Number(item.total_money_spent) + Number(item.total_profit), 0);
-    }, [portfolioResponse]);
+    }, [activePortfolio]);
 
     const totalGain = useMemo(() => {
-        if (!portfolioResponse) return 0;
-        return portfolioResponse.portfolio.reduce((acc, item) =>
+        return activePortfolio.portfolio.reduce((acc, item) =>
             acc + Number(item.total_profit), 0);
-    }, [portfolioResponse]);
+    }, [activePortfolio]);
 
     const totalCost = useMemo(() => {
-        if (!portfolioResponse) return 0;
-        return portfolioResponse.portfolio.reduce((acc, item) =>
+        return activePortfolio.portfolio.reduce((acc, item) =>
             acc + Number(item.total_money_spent), 0);
-    }, [portfolioResponse]);
+    }, [activePortfolio]);
 
     const gainPercentage = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
 
@@ -40,17 +45,6 @@ const PortfolioPage = () => {
                 <div className="flex flex-col items-center gap-4">
                     <Loader2 className="w-12 h-12 animate-spin text-black" />
                     <Text className="text-xl font-bold">Loading Portfolio...</Text>
-                </div>
-            </div>
-        );
-    }
-
-    if (isError) {
-        return (
-            <div className="min-h-screen bg-yellow-50/50 font-sans flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <Text className="text-xl font-bold text-red-600">Error loading portfolio</Text>
-                    <Button onClick={() => refetch()}>Try Again</Button>
                 </div>
             </div>
         );
@@ -103,7 +97,7 @@ const PortfolioPage = () => {
                 />
 
                 {/* Holdings List */}
-                {portfolioResponse && <HoldingsGrid portfolio={portfolioResponse.portfolio} />}
+                <HoldingsGrid portfolio={activePortfolio.portfolio} />
             </div>
         </div>
     );
