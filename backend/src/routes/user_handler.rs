@@ -22,8 +22,14 @@ pub struct AuthCallbackQuery {
     pub code: String,
     pub state: String,
 }
+
 pub async fn login_user(State(app_state): State<AppState>) -> Result<impl IntoResponse, ApiError> {
     let auth0_login_response = app_state.user_service.login_user().await?;
+    tracing::trace!(
+        "Login user response: csrf token {} pkce code verifier {}",
+        auth0_login_response.csrf_token.secret(),
+        auth0_login_response.pkce_code_verifier.secret()
+    );
     let csrf_token_cookie = set_cookie("csrf_token", auth0_login_response.csrf_token.secret());
     let pkce_code_verifier_cookie = set_cookie(
         "pkce_code_verifier",
@@ -31,6 +37,7 @@ pub async fn login_user(State(app_state): State<AppState>) -> Result<impl IntoRe
     );
     let auth_url = auth0_login_response.auth_url.to_string();
     let mut redirect_response = Redirect::to(&auth_url).into_response();
+    tracing::trace!("Redirecting to auth_url: {}", auth_url);
     let csrf_token_header = HeaderValue::from_str(&csrf_token_cookie.to_string()).map_err(|e| {
         ApiError::InternalServerError(format!("Failed to create csrf token header: {}", e))
     })?;
