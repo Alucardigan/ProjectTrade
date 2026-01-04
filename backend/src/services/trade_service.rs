@@ -144,18 +144,18 @@ impl TradeService {
                 interval.tick().await;
                 match self.get_pending_orders().await {
                     Ok(pending_orders) => {
-                        debug!("Pending orders: {}", pending_orders.len());
+                        debug!(count = pending_orders.len(), "Processing pending orders");
                         for order in pending_orders {
                             match self.execute_order(order.order_id).await {
                                 Ok(_) => {}
                                 Err(e) => {
-                                    warn!("Failed to execute order: {:?}", e);
+                                    warn!(error = ?e, "Failed to execute order");
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        warn!("Failed to fetch pending orders: {:?}", e);
+                        warn!(error = ?e, "Failed to fetch pending orders");
                     }
                 }
             }
