@@ -13,7 +13,7 @@ use sqlx::Row;
 use sqlx::{types::BigDecimal, PgPool};
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -47,19 +47,14 @@ impl TradeService {
             .fetch_one(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
-        let order_status_str: &str = rec
-            .try_get("status")
-            .map_err(|_| TradeError::InvalidOrderStatus)?;
         Ok(Order {
             order_id: rec.try_get("order_id")?,
             user_id: rec.try_get("user_id")?,
             symbol: rec.try_get("ticker")?,
             quantity: rec.try_get("quantity")?,
             price_per_share: rec.try_get("price_per_share")?,
-            order_type: OrderType::from_str(rec.try_get("order_type")?)
-                .map_err(|_| TradeError::InvalidOrderType)?,
-            status: OrderStatus::from_str(order_status_str)
-                .map_err(|_| TradeError::InvalidOrderStatus)?,
+            order_type: rec.try_get("order_type")?,
+            status: rec.try_get("status")?,
         })
     }
 
@@ -68,6 +63,7 @@ impl TradeService {
         let order = self.get_order(order_id).await?;
         //validation checks
         if order.status != OrderStatus::Pending {
+            warn!("Order is not in pending state: {}", order.status);
             return Err(TradeError::InvalidOrderStatus);
         }
         if order.quantity < BigDecimal::from(0) {
@@ -82,10 +78,15 @@ impl TradeService {
         match order.order_type {
             OrderType::Buy => {
                 self.account_management_service
-                    .deduct_user_balance(order.user_id, total_purchase_price)
+                    .deduct_user_balance(order.user_id, &total_purchase_price)
                     .await?;
                 self.portfolio_management_service
-                    .add_to_portfolio(order.user_id, &order.symbol, order.quantity)
+                    .add_to_portfolio(
+                        order.user_id,
+                        &order.symbol,
+                        &order.quantity,
+                        &total_purchase_price,
+                    )
                     .await?;
             }
             OrderType::Sell => {
@@ -99,7 +100,7 @@ impl TradeService {
         }
         sqlx::query("UPDATE orders SET status = $2 WHERE order_id = $1")
             .bind(order_id)
-            .bind(OrderStatus::Executed.to_string())
+            .bind(OrderStatus::Executed)
             .execute(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
@@ -123,10 +124,8 @@ impl TradeService {
                 symbol: rec.try_get("ticker")?,
                 quantity: rec.try_get("quantity")?,
                 price_per_share: rec.try_get("price_per_share")?,
-                order_type: OrderType::from_str(rec.try_get("order_type")?)
-                    .map_err(|_| TradeError::InvalidOrderType)?,
-                status: OrderStatus::from_str(rec.try_get("status")?)
-                    .map_err(|_| TradeError::InvalidOrderStatus)?,
+                order_type: rec.try_get("order_type")?,
+                status: rec.try_get("status")?,
             });
         }
         Ok(orders)
@@ -144,7 +143,7 @@ impl TradeService {
                 interval.tick().await;
                 match self.get_pending_orders().await {
                     Ok(pending_orders) => {
-                        debug!(count = pending_orders.len(), "Processing pending orders");
+                        info!(count = pending_orders.len(), "Processing pending orders");
                         for order in pending_orders {
                             match self.execute_order(order.order_id).await {
                                 Ok(_) => {}

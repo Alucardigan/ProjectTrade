@@ -91,7 +91,7 @@ impl OrderManagementService {
         sqlx::query(
             "INSERT INTO orders 
         (order_id, user_id, ticker, quantity, price_per_share, order_type, status) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        VALUES ($1, $2, $3, $4, $5, $6::order_type, $7::order_status)",
         )
         .bind(order_id)
         .bind(user_id)

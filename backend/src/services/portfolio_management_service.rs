@@ -67,15 +67,19 @@ impl PortfolioManagementService {
         &self,
         user_id: Uuid,
         symbol: &str,
-        quantity: BigDecimal,
+        quantity: &BigDecimal,
+        total_money_spent: &BigDecimal,
     ) -> Result<(), TradeError> {
+        let portfolio_id = Uuid::new_v4();
         let _rec = sqlx::query(
-            "INSERT INTO portfolio (user_id, ticker, quantity) VALUES ($1, $2, $3)
-            ON CONFLICT (user_id, ticker) DO UPDATE SET quantity = portfolio.quantity + $3",
+            "INSERT INTO portfolio (portfolio_id, user_id, ticker, quantity, total_money_spent) VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (user_id, ticker) DO UPDATE SET quantity = portfolio.quantity + $4, total_money_spent = portfolio.total_money_spent + $5",
         )
+        .bind(portfolio_id)
         .bind(user_id)
         .bind(symbol)
         .bind(quantity)
+        .bind(total_money_spent)
         .execute(&self.db)
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;

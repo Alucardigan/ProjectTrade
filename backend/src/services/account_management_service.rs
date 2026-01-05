@@ -83,7 +83,7 @@ impl AccountManagementService {
     pub async fn deduct_user_balance(
         &self,
         user_id: Uuid,
-        amount: BigDecimal,
+        amount: &BigDecimal,
     ) -> Result<(), TradeError> {
         let deduct_cents = amount * BigDecimal::from(100);
         if deduct_cents <= BigDecimal::zero() {

@@ -49,7 +49,7 @@ pub async fn withdraw_funds(
 ) -> Result<(), ApiError> {
     app_state
         .account_management_service
-        .deduct_user_balance(user_id, request_body.amount)
+        .deduct_user_balance(user_id, &request_body.amount)
         .await?;
     Ok(())
 }
