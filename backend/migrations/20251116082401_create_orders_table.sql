@@ -9,8 +9,8 @@ CREATE TABLE orders (
     price_per_share DECIMAL(15, 4) NOT NULL,
     order_type order_type NOT NULL,
     status order_status NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT order_quantity_check CHECK (quantity >= 0)
 );
 
