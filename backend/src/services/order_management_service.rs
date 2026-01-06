@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::{
@@ -12,7 +11,6 @@ use crate::{
         user_service::UserService,
     },
 };
-use num_traits::ToPrimitive;
 use sqlx::types::BigDecimal;
 use sqlx::PgPool;
 use sqlx::Row;
@@ -98,8 +96,8 @@ impl OrderManagementService {
         .bind(ticker)
         .bind(quantity.clone())
         .bind(&price_per_share)
-        .bind(order_type.to_string())
-        .bind(status.to_string())
+        .bind(&order_type)
+        .bind(&status)
         .execute(&self.db)
         .await
         .map_err(|e| TradeError::DatabaseError(e))?;
@@ -126,10 +124,10 @@ impl OrderManagementService {
             .fetch_one(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
-        let order_status_str: &str = rec
+        let order_status_str: OrderStatus = rec
             .try_get("status")
             .map_err(|_| TradeError::InvalidOrderStatus)?;
-        Ok(OrderStatus::from_str(order_status_str).map_err(|_e| TradeError::InvalidOrderStatus)?)
+        Ok(order_status_str)
     }
 
     #[tracing::instrument(skip(self))]
@@ -140,11 +138,11 @@ impl OrderManagementService {
             .fetch_one(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
-        let order_status_str: &str = rec
+        let order_status_str: OrderStatus = rec
             .try_get("status")
             .map_err(|_| TradeError::InvalidOrderStatus)?;
         //if order is already cancelled, no need to cancel
-        if order_status_str == "Cancelled" {
+        if order_status_str == OrderStatus::Cancelled {
             return Ok(());
         }
         sqlx::query("UPDATE orders SET status = 'Cancelled' WHERE order_id = $1")
@@ -171,10 +169,8 @@ impl OrderManagementService {
                     symbol: r.try_get("symbol")?,
                     quantity: r.try_get("quantity")?,
                     price_per_share: r.try_get("price_per_share")?,
-                    order_type: OrderType::from_str(r.try_get("order_type")?)
-                        .map_err(|_| TradeError::InvalidOrderType)?,
-                    status: OrderStatus::from_str(r.try_get("status")?)
-                        .map_err(|_| TradeError::InvalidOrderStatus)?,
+                    order_type: r.try_get("order_type")?,
+                    status: r.try_get("status")?,
                 })
             })
             .collect::<Result<Vec<Order>, TradeError>>()?;
@@ -195,10 +191,8 @@ impl OrderManagementService {
             symbol: rec.try_get("symbol")?,
             quantity: rec.try_get("quantity")?,
             price_per_share: rec.try_get("price_per_share")?,
-            order_type: OrderType::from_str(rec.try_get("order_type")?)
-                .map_err(|_| TradeError::InvalidOrderType)?,
-            status: OrderStatus::from_str(rec.try_get("status")?)
-                .map_err(|_| TradeError::InvalidOrderStatus)?,
+            order_type: rec.try_get("order_type")?,
+            status: rec.try_get("status")?,
         };
         Ok(order)
     }

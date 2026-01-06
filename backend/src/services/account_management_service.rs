@@ -16,15 +16,12 @@ impl AccountManagementService {
         Self { db }
     }
     #[tracing::instrument(skip(self))]
-    pub async fn get_user_balance(
-        &self,
-        user_id: Uuid,
-    ) -> Result<(BigDecimal, BigDecimal), UserError> {
-        let rec = sqlx::query("SELECT balance,available_balance FROM users WHERE user_id = $1")
+    pub async fn get_user_balance(&self, user_id: Uuid) -> Result<BigDecimal, UserError> {
+        let rec = sqlx::query("SELECT available_balance FROM users WHERE user_id = $1")
             .bind(user_id)
             .fetch_one(&self.db)
             .await?;
-        Ok((rec.get("balance"), rec.get("available_balance")))
+        Ok(rec.get("available_balance"))
     }
 
     #[tracing::instrument(skip(self))]
@@ -37,6 +34,7 @@ impl AccountManagementService {
         if reserve_cents <= BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
+        //only available funds are deducted, balance is deducted from when the order is executed
         let rows_affected = sqlx::query(
         "UPDATE users SET available_balance = available_balance - $1 WHERE user_id = $2 AND available_balance >= $1",
         )
@@ -89,6 +87,7 @@ impl AccountManagementService {
         if deduct_cents <= BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
+        //only need to deduct balance as reserve funds already deducts from available balance
         let rows_affected = sqlx::query(
             "UPDATE users SET balance = balance - $1 WHERE user_id = $2 AND balance >= $1",
         )
