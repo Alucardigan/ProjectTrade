@@ -64,8 +64,8 @@ const PortfolioPage = () => {
                     <div className="flex flex-col sm:flex-row items-center gap-4">
                         <div className="flex gap-3">
                             <Button
-                                onClick={() => window.location.href = '/buy'}
-                                className="bg-green-500 hover:bg-green-600 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all font-bold"
+                                onClick={() => navigate('/buy')}
+
                             >
                                 <Plus className="w-5 h-5 mr-2" /> Buy Asset
                             </Button>
