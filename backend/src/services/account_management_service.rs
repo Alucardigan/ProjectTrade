@@ -55,9 +55,9 @@ impl AccountManagementService {
     pub async fn add_user_balance(
         &self,
         user_id: Uuid,
-        amount: BigDecimal,
+        amount: &BigDecimal,
     ) -> Result<(), TradeError> {
-        if amount <= BigDecimal::zero() {
+        if amount <= &BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
         let rows_affected = sqlx::query(

@@ -9,7 +9,7 @@ use uuid::Uuid;
 pub struct Order {
     pub order_id: Uuid,
     pub user_id: Uuid,
-    pub symbol: String,
+    pub ticker: String,
     pub quantity: BigDecimal,
     pub price_per_share: BigDecimal,
     pub order_type: OrderType, // Buy or Sell

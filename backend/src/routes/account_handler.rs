@@ -35,7 +35,7 @@ pub async fn add_to_user_balance(
 ) -> Result<(), ApiError> {
     app_state
         .account_management_service
-        .add_user_balance(user_id, request_body.amount)
+        .add_user_balance(user_id, &request_body.amount)
         .await?;
     Ok(())
 }

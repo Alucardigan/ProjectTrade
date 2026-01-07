@@ -104,7 +104,7 @@ impl OrderManagementService {
         Ok(Order {
             order_id,
             user_id,
-            symbol: ticker.to_string(),
+            ticker: ticker.to_string(),
             quantity,
             price_per_share,
             order_type,
@@ -166,7 +166,7 @@ impl OrderManagementService {
                 Ok(Order {
                     order_id: r.try_get("order_id")?,
                     user_id: r.try_get("user_id")?,
-                    symbol: r.try_get("symbol")?,
+                    ticker: r.try_get("symbol")?,
                     quantity: r.try_get("quantity")?,
                     price_per_share: r.try_get("price_per_share")?,
                     order_type: r.try_get("order_type")?,
@@ -188,7 +188,7 @@ impl OrderManagementService {
         let order = Order {
             order_id: rec.try_get("order_id")?,
             user_id: rec.try_get("user_id")?,
-            symbol: rec.try_get("symbol")?,
+            ticker: rec.try_get("symbol")?,
             quantity: rec.try_get("quantity")?,
             price_per_share: rec.try_get("price_per_share")?,
             order_type: rec.try_get("order_type")?,
