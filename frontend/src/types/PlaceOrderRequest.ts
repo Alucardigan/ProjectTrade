@@ -1,4 +1,4 @@
-import type { OrderType } from "./OrderType";
+import { OrderType } from "./OrderType";
 
 export interface PlaceOrderRequest {
     symbol: string;
@@ -6,4 +6,3 @@ export interface PlaceOrderRequest {
     order_type: OrderType;
     price_buffer: number;
 }
-

@@ -8,6 +8,7 @@ import { DashboardNavbar } from "@/components/CustomComponents/DashboardNavbar";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPortfolio } from "../api/portfolio";
 import type { PortfolioResponse } from "../types/Portfolio_Response";
+import { useNavigate } from "react-router-dom";
 
 const defaultPortfolioResponse: PortfolioResponse = {
     user_id: "guest",
@@ -15,6 +16,7 @@ const defaultPortfolioResponse: PortfolioResponse = {
 };
 
 const PortfolioPage = () => {
+    const navigate = useNavigate();
     const { data: portfolioResponse, isLoading, refetch } = useQuery({
         queryKey: ['portfolio'],
         queryFn: fetchPortfolio,
