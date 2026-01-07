@@ -5,8 +5,8 @@ CREATE TABLE portfolio(
     ticker VARCHAR NOT NULL,
     quantity DECIMAL NOT NULL,
     total_money_spent DECIMAL(15, 4) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT portfolio_quantity_check CHECK (quantity > 0),
     CONSTRAINT unique_user_ticker UNIQUE (user_id, ticker)
 );

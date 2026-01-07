@@ -28,7 +28,7 @@ pub async fn auth0_middleware(
             .map_err(|_| {
                 ApiError::Unauthorized("Database error: can't fetch user id".to_string())
             })?;
-    let user_id = record
+    let user_id: Uuid = record
         .try_get("user_id")
         .map_err(|_| ApiError::Unauthorized("Database error: can't fetch user id".to_string()))?;
     //update session db
