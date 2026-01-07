@@ -93,15 +93,37 @@ impl PortfolioManagementService {
         symbol: &str,
         quantity: BigDecimal,
     ) -> Result<(), TradeError> {
-        let _rec = sqlx::query(
-            "UPDATE portfolio SET quantity = quantity - $3 WHERE uid = $1 AND ticker = $2 AND quantity >= $3",
-        )
-        .bind(user_id)
-        .bind(symbol)
-        .bind(quantity)
-        .execute(&self.db)
-        .await
-        .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
+        let get_rec = sqlx::query("SELECT * FROM portfolio WHERE user_id = $1 AND ticker = $2")
+            .bind(user_id)
+            .bind(symbol)
+            .fetch_one(&self.db)
+            .await
+            .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
+        if get_rec.is_empty() {
+            return Err(TradeError::UserError(UserError::InsufficientHoldings));
+        }
+        let get_rec_quantity: BigDecimal = get_rec.get("quantity");
+        if get_rec_quantity < quantity {
+            return Err(TradeError::UserError(UserError::InsufficientHoldings));
+        }
+        if get_rec_quantity == quantity {
+            sqlx::query("DELETE FROM portfolio WHERE user_id = $1 AND ticker = $2")
+                .bind(user_id)
+                .bind(symbol)
+                .execute(&self.db)
+                .await
+                .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
+        } else {
+            let _rec = sqlx::query(
+                "UPDATE portfolio SET quantity = quantity - $3 WHERE user_id = $1 AND ticker = $2 AND quantity >= $3",
+            )
+            .bind(user_id)
+            .bind(symbol)
+            .bind(quantity)
+            .execute(&self.db)
+            .await
+            .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
+        }
         Ok(())
     }
 }

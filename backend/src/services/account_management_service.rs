@@ -30,15 +30,15 @@ impl AccountManagementService {
         user_id: Uuid,
         reserve_amount: BigDecimal,
     ) -> Result<(), TradeError> {
-        let reserve_cents = (reserve_amount * BigDecimal::from(100));
-        if reserve_cents <= BigDecimal::zero() {
+        if reserve_amount <= BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
+        tracing::debug!("Reserving funds {} for user {}", reserve_amount, user_id);
         //only available funds are deducted, balance is deducted from when the order is executed
         let rows_affected = sqlx::query(
         "UPDATE users SET available_balance = available_balance - $1 WHERE user_id = $2 AND available_balance >= $1",
         )
-        .bind(reserve_cents)
+        .bind(reserve_amount)
         .bind(user_id)
         .execute(&self.db)
         .await
@@ -57,14 +57,13 @@ impl AccountManagementService {
         user_id: Uuid,
         amount: BigDecimal,
     ) -> Result<(), TradeError> {
-        let add_cents = amount * BigDecimal::from(100);
-        if add_cents <= BigDecimal::zero() {
+        if amount <= BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
         let rows_affected = sqlx::query(
             "UPDATE users SET balance = balance + $1, available_balance = available_balance + $1 WHERE user_id = $2",
         )
-        .bind(add_cents)
+        .bind(amount)
         .bind(user_id)
         .execute(&self.db)
         .await
@@ -83,15 +82,14 @@ impl AccountManagementService {
         user_id: Uuid,
         amount: &BigDecimal,
     ) -> Result<(), TradeError> {
-        let deduct_cents = amount * BigDecimal::from(100);
-        if deduct_cents <= BigDecimal::zero() {
+        if amount <= &BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
         //only need to deduct balance as reserve funds already deducts from available balance
         let rows_affected = sqlx::query(
             "UPDATE users SET balance = balance - $1 WHERE user_id = $2 AND balance >= $1",
         )
-        .bind(deduct_cents)
+        .bind(amount)
         .bind(user_id)
         .execute(&self.db)
         .await

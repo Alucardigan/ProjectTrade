@@ -1,14 +1,19 @@
 import { Card } from "@/components/retroui/Card";
 import { Text } from "@/components/retroui/Text";
 import { Badge } from "@/components/retroui/Badge";
-import { ArrowUpRight, ArrowDownRight, Layers } from "lucide-react";
+import { Button } from "@/components/retroui/Button";
+import { ArrowUpRight, ArrowDownRight, Layers, DollarSign } from "lucide-react";
 import type { PortfolioTicker } from "../../types/Portfolio_Response";
+import { useState } from "react";
+import { SellModal } from "./SellModal";
 
 interface HoldingsGridProps {
     portfolio: PortfolioTicker[];
 }
 
 export const HoldingsGrid = ({ portfolio }: HoldingsGridProps) => {
+    const [selectedSellTicker, setSelectedSellTicker] = useState<{ ticker: string, quantity: number, price: number } | null>(null);
+
     return (
         <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -38,7 +43,7 @@ export const HoldingsGrid = ({ portfolio }: HoldingsGridProps) => {
                                     </div>
                                 </div>
 
-                                <div className="space-y-3">
+                                <div className="space-y-3 mb-6">
                                     <div className="flex justify-between items-center border-b-2 border-dashed border-gray-200 pb-2">
                                         <Text className="text-gray-500 text-sm font-bold">Quantity</Text>
                                         <Text className="font-bold text-gray-900">{item.quantity}</Text>
@@ -60,11 +65,28 @@ export const HoldingsGrid = ({ portfolio }: HoldingsGridProps) => {
                                         </Text>
                                     </div>
                                 </div>
+
+                                <Button
+                                    onClick={() => setSelectedSellTicker({ ticker: item.ticker, quantity: Number(item.quantity), price })}
+                                    className="w-full bg-white hover:bg-red-50 text-red-600 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] transition-all font-bold flex items-center justify-center gap-2"
+                                >
+                                    <DollarSign className="w-4 h-4" /> Sell Asset
+                                </Button>
                             </Card.Content>
                         </Card>
                     );
                 })}
             </div>
+
+            {selectedSellTicker && (
+                <SellModal
+                    isOpen={!!selectedSellTicker}
+                    onClose={() => setSelectedSellTicker(null)}
+                    ticker={selectedSellTicker.ticker}
+                    maxQuantity={selectedSellTicker.quantity}
+                    currentPrice={selectedSellTicker.price}
+                />
+            )}
         </div>
     );
 };

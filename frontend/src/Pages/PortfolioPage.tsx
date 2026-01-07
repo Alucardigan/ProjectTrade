@@ -3,7 +3,7 @@ import { PortfolioSummary } from "@/components/CustomComponents/PortfolioSummary
 import { HoldingsGrid } from "@/components/CustomComponents/HoldingsGrid";
 import { useMemo } from "react";
 import { Button } from "@/components/retroui/Button";
-import { RefreshCw, Plus, Minus, Loader2 } from "lucide-react";
+import { RefreshCw, Plus, Loader2 } from "lucide-react";
 import { DashboardNavbar } from "@/components/CustomComponents/DashboardNavbar";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPortfolio } from "../api/portfolio";
@@ -69,11 +69,7 @@ const PortfolioPage = () => {
                             >
                                 <Plus className="w-5 h-5 mr-2" /> Buy Asset
                             </Button>
-                            <Button
-                                className="bg-red-500 hover:bg-red-600 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all font-bold"
-                            >
-                                <Minus className="w-5 h-5 mr-2" /> Sell Asset
-                            </Button>
+
                         </div>
                         <div className="h-8 w-0.5 bg-gray-300 hidden sm:block"></div>
                         <div className="flex items-center gap-4">
