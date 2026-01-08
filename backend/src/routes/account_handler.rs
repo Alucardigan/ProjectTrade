@@ -3,7 +3,10 @@ use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{app_state::AppState, models::errors::api_error::ApiError};
+use crate::{
+    app_state::AppState,
+    models::{errors::api_error::ApiError, transaction::Transaction},
+};
 
 #[derive(Serialize)]
 pub struct GetAccountBalanceResponse {
@@ -28,6 +31,18 @@ pub async fn get_account_balance(
     };
     Ok(Json(response))
 }
+
+pub async fn get_transaction_history(
+    State(app_state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+) -> Result<Json<Vec<Transaction>>, ApiError> {
+    let transactions = app_state
+        .account_management_service
+        .get_transaction_history(user_id)
+        .await?;
+    Ok(Json(transactions))
+}
+
 pub async fn add_to_user_balance(
     State(app_state): State<AppState>,
     Extension(user_id): Extension<Uuid>,

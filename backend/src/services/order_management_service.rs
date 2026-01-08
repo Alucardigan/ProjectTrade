@@ -154,9 +154,10 @@ impl OrderManagementService {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_orders(&self, user_id: Uuid) -> Result<Vec<Order>, TradeError> {
-        let rec = sqlx::query("SELECT * FROM orders WHERE user_id = $1")
+    pub async fn get_pending_orders(&self, user_id: Uuid) -> Result<Vec<Order>, TradeError> {
+        let rec = sqlx::query("SELECT * FROM orders WHERE user_id = $1 and status = $2")
             .bind(user_id)
+            .bind(OrderStatus::Pending)
             .fetch_all(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
@@ -166,7 +167,7 @@ impl OrderManagementService {
                 Ok(Order {
                     order_id: r.try_get("order_id")?,
                     user_id: r.try_get("user_id")?,
-                    ticker: r.try_get("symbol")?,
+                    ticker: r.try_get("ticker")?,
                     quantity: r.try_get("quantity")?,
                     price_per_share: r.try_get("price_per_share")?,
                     order_type: r.try_get("order_type")?,
@@ -188,7 +189,7 @@ impl OrderManagementService {
         let order = Order {
             order_id: rec.try_get("order_id")?,
             user_id: rec.try_get("user_id")?,
-            ticker: rec.try_get("symbol")?,
+            ticker: rec.try_get("ticket")?,
             quantity: rec.try_get("quantity")?,
             price_per_share: rec.try_get("price_per_share")?,
             order_type: rec.try_get("order_type")?,
