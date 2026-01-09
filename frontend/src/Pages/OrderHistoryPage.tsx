@@ -54,7 +54,7 @@ const OrderHistoryPage = () => {
                 </div>
 
                 {/* Pending Orders Section */}
-                <PendingOrdersList orders={pendingOrders?.orders || []} />
+                <PendingOrdersList orders={pendingOrders || []} />
 
                 {/* Executed Orders Section */}
                 <TransactionHistoryTable transactions={transactionHistory || []} />

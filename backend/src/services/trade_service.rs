@@ -25,7 +25,7 @@ pub struct TradeService {
 }
 #[allow(dead_code)]
 impl TradeService {
-    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 10;
+    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 100;
     pub fn new(
         db: PgPool,
         ticker_service: Arc<TickerService>,

@@ -1,13 +1,11 @@
-export interface PendingOrdersResponse {
-    orders: Order[];
-}
+
 
 export interface Order {
     order_id: string;
     user_id: string;
     ticker: string;
-    quantity: number;
-    price_per_share: number;
+    quantity: string;
+    price_per_share: string;
     order_type: string;
     status: string;
 }
