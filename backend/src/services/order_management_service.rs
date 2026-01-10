@@ -189,7 +189,7 @@ impl OrderManagementService {
         let order = Order {
             order_id: rec.try_get("order_id")?,
             user_id: rec.try_get("user_id")?,
-            ticker: rec.try_get("ticket")?,
+            ticker: rec.try_get("ticker")?,
             quantity: rec.try_get("quantity")?,
             price_per_share: rec.try_get("price_per_share")?,
             order_type: rec.try_get("order_type")?,
