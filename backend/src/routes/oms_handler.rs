@@ -34,13 +34,13 @@ pub async fn get_order_status(
     Ok(Json(order_status))
 }
 #[tracing::instrument(skip(app_state))]
-pub async fn get_orders(
+pub async fn get_pending_orders(
     State(app_state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
 ) -> Result<Json<Vec<Order>>, ApiError> {
     let orders = app_state
         .order_management_service
-        .get_orders(user_id)
+        .get_pending_orders(user_id)
         .await?;
     Ok(Json(orders))
 }

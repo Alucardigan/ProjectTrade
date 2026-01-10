@@ -1,5 +1,6 @@
 use crate::models::errors::trade_error::TradeError;
 use crate::models::errors::user_error::UserError;
+use crate::models::transaction::Transaction;
 use bigdecimal::BigDecimal;
 use num_traits::Zero;
 use sqlx::postgres::types::PgMoney;
@@ -22,6 +23,31 @@ impl AccountManagementService {
             .fetch_one(&self.db)
             .await?;
         Ok(rec.get("available_balance"))
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn get_transaction_history(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<Transaction>, UserError> {
+        let records = sqlx::query("SELECT * FROM transactions WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_all(&self.db)
+            .await
+            .map_err(|e| UserError::DatabaseError(e))?;
+        let mut transactions = vec![];
+        for rec in records {
+            transactions.push(Transaction {
+                transaction_id: rec.get("transaction_id"),
+                user_id: rec.get("user_id"),
+                ticker: rec.get("ticker"),
+                quantity: rec.get("quantity"),
+                price_per_share: rec.get("price_per_share"),
+                order_type: rec.get("order_type"),
+                executed_at: rec.get("executed_at"),
+            });
+        }
+        Ok(transactions)
     }
 
     #[tracing::instrument(skip(self))]
@@ -55,9 +81,9 @@ impl AccountManagementService {
     pub async fn add_user_balance(
         &self,
         user_id: Uuid,
-        amount: BigDecimal,
+        amount: &BigDecimal,
     ) -> Result<(), TradeError> {
-        if amount <= BigDecimal::zero() {
+        if amount <= &BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
         let rows_affected = sqlx::query(

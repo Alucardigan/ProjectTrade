@@ -91,7 +91,7 @@ impl PortfolioManagementService {
         &self,
         user_id: Uuid,
         symbol: &str,
-        quantity: BigDecimal,
+        quantity: &BigDecimal,
     ) -> Result<(), TradeError> {
         let get_rec = sqlx::query("SELECT * FROM portfolio WHERE user_id = $1 AND ticker = $2")
             .bind(user_id)
@@ -103,10 +103,10 @@ impl PortfolioManagementService {
             return Err(TradeError::UserError(UserError::InsufficientHoldings));
         }
         let get_rec_quantity: BigDecimal = get_rec.get("quantity");
-        if get_rec_quantity < quantity {
+        if get_rec_quantity < *quantity {
             return Err(TradeError::UserError(UserError::InsufficientHoldings));
         }
-        if get_rec_quantity == quantity {
+        if get_rec_quantity == *quantity {
             sqlx::query("DELETE FROM portfolio WHERE user_id = $1 AND ticker = $2")
                 .bind(user_id)
                 .bind(symbol)

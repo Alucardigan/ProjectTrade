@@ -70,7 +70,7 @@ async fn test_order_placement() {
     let order = order.unwrap();
 
     assert_eq!(order.user_id, user_id);
-    assert_eq!(order.symbol, symbol);
+    assert_eq!(order.ticker, symbol);
     assert_eq!(order.quantity, quantity);
     assert_eq!(order.status, OrderStatus::Pending);
 }

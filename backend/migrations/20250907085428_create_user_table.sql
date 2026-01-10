@@ -5,8 +5,8 @@ CREATE TABLE users (
     auth_user_id TEXT UNIQUE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    balance DECIMAL(15, 4) DEFAULT 0,
-    available_balance DECIMAL(15, 4) DEFAULT 0
+    balance DECIMAL(15, 4) DEFAULT 1000000,
+    available_balance DECIMAL(15, 4) DEFAULT 1000000
 );
 
 CREATE INDEX idx_users_username ON users(username);

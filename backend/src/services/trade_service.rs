@@ -25,7 +25,7 @@ pub struct TradeService {
 }
 #[allow(dead_code)]
 impl TradeService {
-    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 10;
+    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 100;
     pub fn new(
         db: PgPool,
         ticker_service: Arc<TickerService>,
@@ -50,14 +50,13 @@ impl TradeService {
         Ok(Order {
             order_id: rec.try_get("order_id")?,
             user_id: rec.try_get("user_id")?,
-            symbol: rec.try_get("ticker")?,
+            ticker: rec.try_get("ticker")?,
             quantity: rec.try_get("quantity")?,
             price_per_share: rec.try_get("price_per_share")?,
             order_type: rec.try_get("order_type")?,
             status: rec.try_get("status")?,
         })
     }
-
     #[tracing::instrument(skip(self))]
     pub async fn execute_order(&self, order_id: Uuid) -> Result<(), TradeError> {
         let order = self.get_order(order_id).await?;
@@ -71,7 +70,7 @@ impl TradeService {
         }
         let price = self
             .ticker_service
-            .search_symbol(&order.symbol)
+            .search_symbol(&order.ticker)
             .await
             .price_per_share;
         let total_purchase_price = &price * &order.quantity;
@@ -83,7 +82,7 @@ impl TradeService {
                 self.portfolio_management_service
                     .add_to_portfolio(
                         order.user_id,
-                        &order.symbol,
+                        &order.ticker,
                         &order.quantity,
                         &total_purchase_price,
                     )
@@ -91,13 +90,14 @@ impl TradeService {
             }
             OrderType::Sell => {
                 self.portfolio_management_service
-                    .remove_from_portfolio(order.user_id, &order.symbol, order.quantity)
+                    .remove_from_portfolio(order.user_id, &order.ticker, &order.quantity)
                     .await?;
                 self.account_management_service
-                    .add_user_balance(order.user_id, total_purchase_price)
+                    .add_user_balance(order.user_id, &total_purchase_price)
                     .await?;
             }
         }
+        self.log_transaction(order).await?;
         sqlx::query("UPDATE orders SET status = $2 WHERE order_id = $1")
             .bind(order_id)
             .bind(OrderStatus::Executed)
@@ -121,7 +121,7 @@ impl TradeService {
             orders.push(Order {
                 order_id: rec.try_get("order_id")?,
                 user_id: rec.try_get("user_id")?,
-                symbol: rec.try_get("ticker")?,
+                ticker: rec.try_get("ticker")?,
                 quantity: rec.try_get("quantity")?,
                 price_per_share: rec.try_get("price_per_share")?,
                 order_type: rec.try_get("order_type")?,
@@ -159,5 +159,22 @@ impl TradeService {
                 }
             }
         })
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn log_transaction(&self, order: Order) -> Result<(), TradeError> {
+        sqlx::query(
+            "INSERT INTO transactions (transaction_id, user_id, ticker, order_type, quantity, price_per_share) 
+            VALUES ($1, $2, $3, $4, $5, $6)")
+            .bind(uuid::Uuid::new_v4())
+            .bind(order.user_id)
+            .bind(order.ticker)
+            .bind(order.order_type)
+            .bind(order.quantity)
+            .bind(order.price_per_share)
+            .execute(&self.db)
+            .await
+            .map_err(|e| TradeError::DatabaseError(e))?;
+        Ok(())
     }
 }

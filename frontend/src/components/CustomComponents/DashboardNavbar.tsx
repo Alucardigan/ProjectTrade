@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/retroui/Button";
 import { Text } from "@/components/retroui/Text";
-import { BarChart3, LogOut, Wallet, Loader2 } from "lucide-react";
+import { BarChart3, LogOut, Wallet, Loader2, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAccountBalance } from "../../api/account";
 
@@ -37,6 +37,14 @@ export const DashboardNavbar = () => {
                             )}
                         </div>
                     </div>
+
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate('/orders')}
+                        className="font-bold flex items-center gap-2"
+                    >
+                        <Clock className="w-4 h-4" /> History
+                    </Button>
 
                     <Button
                         variant="ghost"
