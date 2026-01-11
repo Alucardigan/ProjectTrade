@@ -55,7 +55,7 @@ impl LoanService {
             .await
             .map_err(|e| UserError::DatabaseError(e))?;
         if existing_loan.is_some() {
-            return Err(UserError::UserAlreadyHasLoan);
+            return Err(UserError::UserDoesNotHaveLoan);
         }
         //match to loan type - needs a refactor
         match loan_type {
@@ -106,42 +106,6 @@ impl LoanService {
         }
         Ok(())
     }
-    pub async fn get_user_credit_score(&self, user_id: Uuid) -> Result<BigDecimal, TradeError> {
-        //check if user already has a loan
-        let existing_loan = sqlx::query("SELECT * FROM loans WHERE user_id = $1")
-            .bind(user_id)
-            .fetch_one(&self.db)
-            .await;
-
-        match existing_loan {
-            Ok(existing_loan) => {
-                let existing_liability = Loan::new(
-                    existing_loan.try_get("loan_id")?,
-                    existing_loan.try_get("user_id")?,
-                    existing_loan.try_get("principal")?,
-                    existing_loan.try_get("interest_rate")?,
-                    existing_loan.try_get("status")?,
-                    existing_loan.try_get("created_at")?,
-                    existing_loan.try_get("last_paid_at")?,
-                );
-                let current_cash_balance = self
-                    .account_management_service
-                    .get_user_balance(user_id)
-                    .await?;
-                let portfolio_value = self
-                    .portfolio_service
-                    .get_total_portfolio_value(user_id)
-                    .await?;
-                let credit_score = (&current_cash_balance + &portfolio_value
-                    - existing_liability.get_current_balance())
-                    / (&current_cash_balance + &portfolio_value);
-                Ok(credit_score * BigDecimal::from(100))
-            }
-            //if the user doesnt have a loan auto 100 credit score
-            Err(sqlx::Error::RowNotFound) => Ok(BigDecimal::from(100)),
-            Err(e) => Err(TradeError::DatabaseError(e)),
-        }
-    }
     //users are assumed to only have one loan
     pub async fn set_loan_status(
         &self,
@@ -154,26 +118,6 @@ impl LoanService {
             .execute(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
-        Ok(())
-    }
-    pub async fn check_for_bankruptcy(&self, user_id: Uuid) -> Result<(), TradeError> {
-        let credit_score = self.get_user_credit_score(user_id).await.unwrap();
-        if credit_score < BigDecimal::zero() {
-            let user_portfolio = self.portfolio_service.get_portfolio(user_id).await?;
-            for portfolio_item in user_portfolio {
-                self.portfolio_service
-                    .remove_from_portfolio(
-                        portfolio_item.user_id,
-                        &portfolio_item.ticker,
-                        &portfolio_item.quantity,
-                    )
-                    .await?;
-            }
-            self.account_management_service
-                .reset_user_balance(user_id)
-                .await?;
-            self.set_loan_status(user_id, LoanStatus::DEFAULTED).await?;
-        }
         Ok(())
     }
 }

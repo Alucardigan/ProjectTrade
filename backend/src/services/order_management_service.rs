@@ -197,4 +197,13 @@ impl OrderManagementService {
         };
         Ok(order)
     }
+
+    pub async fn cancel_all_orders(&self, user_id: Uuid) -> Result<(), TradeError> {
+        sqlx::query("UPDATE orders SET status = 'Cancelled' WHERE user_id = $1")
+            .bind(user_id)
+            .execute(&self.db)
+            .await
+            .map_err(|e| TradeError::DatabaseError(e))?;
+        Ok(())
+    }
 }
