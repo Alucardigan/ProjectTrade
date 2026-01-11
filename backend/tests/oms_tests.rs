@@ -25,8 +25,11 @@ async fn setup_db() -> PgPool {
 async fn test_order_placement() {
     let pool = setup_db().await;
     let account_service = Arc::new(AccountManagementService::new(pool.clone()));
-    let portfolio_service = Arc::new(PortfolioManagementService::new(pool.clone()));
     let ticker_service = Arc::new(TickerService::new("mock", pool.clone()));
+    let portfolio_service = Arc::new(PortfolioManagementService::new(
+        pool.clone(),
+        ticker_service.clone(),
+    ));
     let auth_client = Arc::new(AuthorizationClient::new());
     let user_service = Arc::new(UserService::new(
         pool.clone(),
@@ -46,8 +49,10 @@ async fn test_order_placement() {
     // Create a test user
     let username = format!("trader_{}", Uuid::new_v4());
     let email = format!("{}@example.com", username);
+    let auth0_id = format!("auth0|{}", Uuid::new_v4());
+    let user_id = Uuid::new_v4();
     user_service
-        .register_user(&username, &email, "password")
+        .upsert_user(user_id, &auth0_id, &username, &email)
         .await
         .unwrap();
     let user_id = user_service.get_user_uuid(&username).await.unwrap();
@@ -55,7 +60,7 @@ async fn test_order_placement() {
     // Place an order
     let symbol = "AAPL";
     let quantity = BigDecimal::from_str("10").unwrap();
-    let price_buffer = 0.0;
+    let price_buffer = BigDecimal::from(0);
 
     let order = oms
         .place_order(

@@ -18,14 +18,18 @@ async fn setup_app() -> axum::Router {
     let pool = match PgPool::connect(&db_url).await {
         Ok(pool) => pool,
         Err(_) => {
-            return create_router().with_state(AppState::new(
+            return create_router(AppState::new(
+                PgPool::connect_lazy(&db_url).unwrap(),
+                "mock",
+            ))
+            .with_state(AppState::new(
                 PgPool::connect_lazy(&db_url).unwrap(),
                 "mock",
             ))
         }
     };
     let app_state = AppState::new(pool, "mock");
-    create_router().with_state(app_state)
+    create_router(app_state.clone()).with_state(app_state)
 }
 
 #[tokio::test]
@@ -35,7 +39,7 @@ async fn test_get_tickers() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/tickers")
+                .uri("/tickers/AAPL")
                 .body(Body::empty())
                 .unwrap(),
         )

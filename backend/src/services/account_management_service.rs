@@ -126,4 +126,14 @@ impl AccountManagementService {
             Err(TradeError::UserError(UserError::InsufficientFunds))
         }
     }
+    pub async fn reset_user_balance(&self, user_id: Uuid) -> Result<(), TradeError> {
+        sqlx::query(
+            "UPDATE users SET balance = 100000, available_balance = 100000 WHERE user_id = $1",
+        )
+        .bind(user_id)
+        .execute(&self.db)
+        .await
+        .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
+        Ok(())
+    }
 }

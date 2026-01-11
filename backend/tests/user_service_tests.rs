@@ -1,6 +1,7 @@
 use backend::authentication::basic_client::AuthorizationClient;
 use backend::services::account_management_service::AccountManagementService;
 use backend::services::portfolio_management_service::PortfolioManagementService;
+use backend::services::ticker_service::TickerService;
 use backend::services::user_service::UserService;
 use dotenv::dotenv;
 use sqlx::PgPool;
@@ -20,7 +21,11 @@ async fn setup_db() -> PgPool {
 async fn test_user_service_registration() {
     let pool = setup_db().await;
     let account_service = Arc::new(AccountManagementService::new(pool.clone()));
-    let portfolio_service = Arc::new(PortfolioManagementService::new(pool.clone()));
+    let ticker_service = Arc::new(TickerService::new("mock", pool.clone()));
+    let portfolio_service = Arc::new(PortfolioManagementService::new(
+        pool.clone(),
+        ticker_service.clone(),
+    ));
     let auth_client = Arc::new(AuthorizationClient::new());
     let service = UserService::new(
         pool.clone(),
@@ -31,14 +36,17 @@ async fn test_user_service_registration() {
 
     let username = format!("testuser_{}", Uuid::new_v4());
     let email = format!("{}@example.com", username);
-    let password = "password123";
+    let auth0_id = format!("auth0|{}", Uuid::new_v4());
+    let user_id = Uuid::new_v4();
 
-    let result = service.register_user(&username, &email, password).await;
+    let result = service
+        .upsert_user(user_id, &auth0_id, &username, &email)
+        .await;
     assert!(result.is_ok());
 
     // Verify user exists and has balance account
     let user_id = service.get_user_uuid(&username).await.unwrap();
-    let balance = sqlx::query("SELECT balance FROM user_balance WHERE uid = $1")
+    let balance = sqlx::query("SELECT balance FROM users WHERE user_id = $1")
         .bind(user_id)
         .fetch_one(&pool)
         .await;
