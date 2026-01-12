@@ -14,96 +14,60 @@ use sqlx::Row;
 use uuid::Uuid;
 pub struct LoanService {
     db: PgPool,
-    account_management_service: Arc<AccountManagementService>,
-    portfolio_service: Arc<PortfolioManagementService>,
 }
 
 impl LoanService {
-    pub fn new(
-        db: PgPool,
-        account_management_service: Arc<AccountManagementService>,
-        portfolio_service: Arc<PortfolioManagementService>,
-    ) -> LoanService {
-        LoanService {
-            db,
-            account_management_service,
-            portfolio_service,
-        }
+    pub fn new(db: PgPool) -> LoanService {
+        LoanService { db }
     }
     //should convert this into a function that also checks if user has a loan
     pub async fn get_loan(&self, user_id: Uuid) -> Result<Loan, UserError> {
         let loan = sqlx::query("SELECT * FROM loans WHERE user_id = $1")
             .bind(user_id)
             .fetch_one(&self.db)
-            .await
-            .map_err(|e| UserError::DatabaseError(e))?;
-        Ok(Loan::new(
-            loan.try_get("loan_id")?,
-            loan.try_get("user_id")?,
-            loan.try_get("principal")?,
-            loan.try_get("interest_rate")?,
-            loan.try_get("status")?,
-            loan.try_get("created_at")?,
-            loan.try_get("last_paid_at")?,
-        ))
+            .await;
+        match loan {
+            Ok(loan) => Ok(Loan::new(
+                loan.try_get("loan_id")?,
+                loan.try_get("user_id")?,
+                loan.try_get("principal")?,
+                loan.try_get("interest_rate")?,
+                loan.try_get("status")?,
+                loan.try_get("created_at")?,
+                loan.try_get("last_paid_at")?,
+            )),
+            Err(sqlx::Error::RowNotFound) => Err(UserError::UserDoesNotHaveLoan),
+            Err(e) => Err(UserError::DatabaseError(e)),
+        }
     }
     pub async fn request_loan(&self, user_id: Uuid, loan_type: LoanType) -> Result<(), UserError> {
         //check if user already has a loan
-        let existing_loan = sqlx::query("SELECT * FROM loans WHERE user_id = $1")
-            .bind(user_id)
-            .fetch_optional(&self.db)
+        let existing_loan = self.get_loan(user_id).await;
+        if existing_loan.is_ok() {
+            return Err(UserError::UserAlreadyHasLoan);
+        }
+        let (principal, interest_rate) = loan_type.get_rates();
+        let loan = Loan::new(
+            Uuid::new_v4(),
+            user_id,
+            principal,
+            interest_rate,
+            LoanStatus::ONGOING,
+            Utc::now(),
+            Utc::now(),
+        );
+        sqlx::query("INSERT INTO loans (loan_id, user_id, principal, interest_rate, status, created_at, last_paid_at) VALUES ($1, $2, $3, $4, $5, $6, $7)")
+            .bind(loan.loan_id)
+            .bind(loan.user_id)
+            .bind(loan.principal)
+            .bind(loan.interest_rate)
+            .bind(loan.status)
+            .bind(loan.created_at)
+            .bind(loan.last_paid_at)
+            .execute(&self.db)
             .await
             .map_err(|e| UserError::DatabaseError(e))?;
-        if existing_loan.is_some() {
-            return Err(UserError::UserDoesNotHaveLoan);
-        }
-        //match to loan type - needs a refactor
-        match loan_type {
-            LoanType::Standard => {
-                let loan = Loan::new(
-                    Uuid::new_v4(),
-                    user_id,
-                    BigDecimal::from(100000),
-                    BigDecimal::from(5),
-                    LoanStatus::ONGOING,
-                    Utc::now(),
-                    Utc::now(),
-                );
-                sqlx::query("INSERT INTO loans (loan_id, user_id, principal, interest_rate, status, created_at, last_paid_at) VALUES ($1, $2, $3, $4, $5, $6, $7)")
-                    .bind(loan.loan_id)
-                    .bind(loan.user_id)
-                    .bind(loan.principal)
-                    .bind(loan.interest_rate)
-                    .bind(loan.status)
-                    .bind(loan.created_at)
-                    .bind(loan.last_paid_at)
-                    .execute(&self.db)
-                    .await
-                    .map_err(|e| UserError::DatabaseError(e))?;
-            }
-            LoanType::Premium => {
-                let loan = Loan::new(
-                    Uuid::new_v4(),
-                    user_id,
-                    BigDecimal::from(10000000),
-                    BigDecimal::from(10),
-                    LoanStatus::ONGOING,
-                    Utc::now(),
-                    Utc::now(),
-                );
-                sqlx::query("INSERT INTO loans (loan_id, user_id, principal, interest_rate, status, created_at, last_paid_at) VALUES ($1, $2, $3, $4, $5, $6, $7)")
-                    .bind(loan.loan_id)
-                    .bind(loan.user_id)
-                    .bind(loan.principal)
-                    .bind(loan.interest_rate)
-                    .bind(loan.status)
-                    .bind(loan.created_at)
-                    .bind(loan.last_paid_at)
-                    .execute(&self.db)
-                    .await
-                    .map_err(|e| UserError::DatabaseError(e))?;
-            }
-        }
+
         Ok(())
     }
     //users are assumed to only have one loan

@@ -24,6 +24,15 @@ pub enum LoanType {
     Premium,
 }
 
+impl LoanType {
+    pub fn get_rates(&self) -> (BigDecimal, BigDecimal) {
+        match self {
+            LoanType::Standard => (BigDecimal::from(100_000), BigDecimal::from(5)),
+            LoanType::Premium => (BigDecimal::from(1_000_000), BigDecimal::from(10)),
+        }
+    }
+}
+
 pub struct Loan {
     pub loan_id: Uuid,
     pub user_id: Uuid,
