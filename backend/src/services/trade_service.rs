@@ -97,7 +97,7 @@ impl TradeService {
                     .await?;
             }
         }
-        self.log_transaction(order).await?;
+        self.log_transaction(&order).await?;
         sqlx::query("UPDATE orders SET status = $2 WHERE order_id = $1")
             .bind(order_id)
             .bind(OrderStatus::Executed)
@@ -162,16 +162,16 @@ impl TradeService {
     }
 
     #[tracing::instrument(skip(self))]
-    async fn log_transaction(&self, order: Order) -> Result<(), TradeError> {
+    async fn log_transaction(&self, order: &Order) -> Result<(), TradeError> {
         sqlx::query(
             "INSERT INTO transactions (transaction_id, user_id, ticker, order_type, quantity, price_per_share) 
             VALUES ($1, $2, $3, $4, $5, $6)")
             .bind(uuid::Uuid::new_v4())
-            .bind(order.user_id)
-            .bind(order.ticker)
-            .bind(order.order_type)
-            .bind(order.quantity)
-            .bind(order.price_per_share)
+            .bind(&order.user_id)
+            .bind(&order.ticker)
+            .bind(&order.order_type)
+            .bind(&order.quantity)
+            .bind(&order.price_per_share)
             .execute(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
