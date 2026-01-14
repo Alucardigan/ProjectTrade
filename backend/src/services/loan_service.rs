@@ -14,11 +14,18 @@ use sqlx::Row;
 use uuid::Uuid;
 pub struct LoanService {
     db: PgPool,
+    account_management_service: Arc<AccountManagementService>,
 }
 
 impl LoanService {
-    pub fn new(db: PgPool) -> LoanService {
-        LoanService { db }
+    pub fn new(
+        db: PgPool,
+        account_management_service: Arc<AccountManagementService>,
+    ) -> LoanService {
+        LoanService {
+            db,
+            account_management_service,
+        }
     }
     //should convert this into a function that also checks if user has a loan
     pub async fn get_loan(&self, user_id: Uuid) -> Result<Loan, UserError> {
@@ -40,11 +47,11 @@ impl LoanService {
             Err(e) => Err(UserError::DatabaseError(e)),
         }
     }
-    pub async fn request_loan(&self, user_id: Uuid, loan_type: LoanType) -> Result<(), UserError> {
+    pub async fn request_loan(&self, user_id: Uuid, loan_type: LoanType) -> Result<(), TradeError> {
         //check if user already has a loan
         let existing_loan = self.get_loan(user_id).await;
         if existing_loan.is_ok() {
-            return Err(UserError::UserAlreadyHasLoan);
+            return Err(TradeError::UserError(UserError::UserAlreadyHasLoan));
         }
         let (principal, interest_rate) = loan_type.get_rates();
         let loan = Loan::new(
@@ -57,17 +64,19 @@ impl LoanService {
             Utc::now(),
         );
         sqlx::query("INSERT INTO loans (loan_id, user_id, principal, interest_rate, status, created_at, last_paid_at) VALUES ($1, $2, $3, $4, $5, $6, $7)")
-            .bind(loan.loan_id)
-            .bind(loan.user_id)
-            .bind(loan.principal)
-            .bind(loan.interest_rate)
-            .bind(loan.status)
-            .bind(loan.created_at)
-            .bind(loan.last_paid_at)
+            .bind(&loan.loan_id)
+            .bind(&loan.user_id)
+            .bind(&loan.principal)
+            .bind(&loan.interest_rate)
+            .bind(&loan.status)
+            .bind(&loan.created_at)
+            .bind(&loan.last_paid_at)
             .execute(&self.db)
             .await
             .map_err(|e| UserError::DatabaseError(e))?;
-
+        self.account_management_service
+            .add_user_balance(user_id, &loan.principal)
+            .await?;
         Ok(())
     }
     //users are assumed to only have one loan
