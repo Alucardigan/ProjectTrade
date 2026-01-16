@@ -2,7 +2,6 @@ use bigdecimal::BigDecimal;
 use chrono::DateTime;
 use chrono::Utc;
 use num_traits::pow;
-use num_traits::Pow;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use strum::EnumString;
