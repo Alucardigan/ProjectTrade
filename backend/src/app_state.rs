@@ -1,6 +1,7 @@
 use crate::authentication::basic_client::AuthorizationClient;
 use crate::models::errors::trade_error::TradeError;
 use crate::services::account_management_service::AccountManagementService;
+use crate::services::loan_service::LoanService;
 use crate::services::order_management_service::OrderManagementService;
 use crate::services::portfolio_management_service::PortfolioManagementService;
 use crate::services::ticker_service::TickerService;
@@ -18,6 +19,7 @@ pub struct AppState {
     pub portfolio_service: Arc<PortfolioManagementService>,
     pub account_management_service: Arc<AccountManagementService>,
     pub order_management_service: Arc<OrderManagementService>,
+    pub loan_service: Arc<LoanService>,
 }
 
 impl AppState {
@@ -50,6 +52,10 @@ impl AppState {
             account_management_service.clone(),
             portfolio_service.clone(),
         ));
+        let loan_service = Arc::new(LoanService::new(
+            db.clone(),
+            account_management_service.clone(),
+        ));
         tracing::info!("App state created & all services are operational");
         Self {
             db,
@@ -59,6 +65,7 @@ impl AppState {
             portfolio_service,
             account_management_service,
             order_management_service,
+            loan_service,
         }
     }
     pub fn start_background_processes(

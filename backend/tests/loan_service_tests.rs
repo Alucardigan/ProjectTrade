@@ -29,11 +29,7 @@ async fn test_loan_request() {
         ticker_service,
     ));
 
-    let loan_service = LoanService::new(
-        pool.clone(),
-        account_service.clone(),
-        portfolio_service.clone(),
-    );
+    let loan_service = LoanService::new(pool.clone(), account_service.clone());
 
     let user_id = Uuid::new_v4();
     // Create user first (omitted for brevity, assume user exists or mock it)

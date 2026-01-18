@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000';
 
 export enum LoanType {
     Standard = 'Standard',
@@ -8,8 +7,8 @@ export enum LoanType {
 }
 
 export const requestLoan = async (loanType: LoanType) => {
-    const response = await axios.post(`${API_URL}/loans`, { loan_type: loanType }, {
-        withCredentials: true,
+    const response = await axios.post(`api/loans/${loanType}`, {}, {
+
     });
     return response.data;
 };

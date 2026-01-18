@@ -18,6 +18,7 @@ pub enum LoanStatus {
     DEFAULTED,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, EnumString)]
 pub enum LoanType {
     Standard,
     Premium,
