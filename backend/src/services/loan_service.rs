@@ -1,9 +1,11 @@
+use std::cmp::min;
 use std::sync::Arc;
 
 use crate::models::errors::trade_error::TradeError;
 use crate::models::loan::{Loan, LoanStatus};
 use crate::models::{errors::user_error::UserError, loan::LoanType};
 use crate::services::account_management_service::AccountManagementService;
+use bigdecimal::BigDecimal;
 use chrono::Utc;
 use sqlx::PgPool;
 use sqlx::Row;
@@ -87,6 +89,50 @@ impl LoanService {
             .execute(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
+        Ok(())
+    }
+
+    pub async fn repay_loan(
+        &self,
+        user_id: Uuid,
+        payment_amount: BigDecimal,
+    ) -> Result<(), TradeError> {
+        let loan = self.get_loan(user_id).await?;
+        if loan.status != LoanStatus::ONGOING {
+            return Err(TradeError::UserError(UserError::UserDoesNotHaveLoan));
+        }
+        let user_balance = self
+            .account_management_service
+            .get_user_balance(user_id)
+            .await?;
+        if user_balance < payment_amount {
+            return Err(TradeError::UserError(UserError::InsufficientFunds));
+        }
+
+        let (accrued_interest, principal) = loan.get_current_balance();
+        self.account_management_service
+            .deduct_user_balance(
+                user_id,
+                &min(payment_amount.clone(), &accrued_interest + &principal),
+            )
+            .await?;
+
+        //pay the accrued interest first
+        let remaining_interest = &accrued_interest - min(&payment_amount, &accrued_interest);
+        let remaning_payment_amount = &payment_amount - min(&payment_amount, &accrued_interest);
+        let mut remaining_principal = &principal - &remaning_payment_amount;
+        remaining_principal += &remaining_interest;
+        if remaining_principal <= BigDecimal::from(0) {
+            self.set_loan_status(user_id, LoanStatus::PAID).await?;
+        } else {
+            sqlx::query("UPDATE loans SET principal = $2, last_paid_at = $3 WHERE loan_id = $1")
+                .bind(loan.loan_id)
+                .bind(remaining_principal)
+                .bind(Utc::now())
+                .execute(&self.db)
+                .await
+                .map_err(|e| TradeError::DatabaseError(e))?;
+        }
         Ok(())
     }
 }

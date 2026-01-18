@@ -1,9 +1,6 @@
 use crate::{
-    app_state::{self, AppState},
-    models::{
-        errors::{api_error::ApiError, trade_error::TradeError},
-        portfolio_ticker::PortfolioTicker,
-    },
+    app_state::AppState,
+    models::{errors::api_error::ApiError, portfolio_ticker::PortfolioTicker},
 };
 use axum::{extract::State, Extension, Json};
 use serde::Serialize;

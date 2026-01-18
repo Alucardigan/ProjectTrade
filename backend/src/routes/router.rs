@@ -3,7 +3,7 @@ use crate::routes::account_handler::{
     add_to_user_balance, get_account_balance, get_transaction_history, withdraw_funds,
 };
 use crate::routes::health::health;
-use crate::routes::loan_handler::get_loan;
+use crate::routes::loan_handler::{get_loan, request_loan};
 use crate::routes::middleware::auth0_middleware;
 use crate::routes::oms_handler::{
     cancel_order, get_order, get_order_status, get_pending_orders, place_order,
@@ -31,7 +31,8 @@ pub fn create_router(app_state: AppState) -> Router<AppState> {
         .route("/orders/:order_id", get(get_order))
         .route("/orders", post(place_order))
         .route("/orders/:order_id", delete(cancel_order))
-        .route("/loans/:loan_type", post(get_loan))
+        .route("/loans", get(get_loan))
+        .route("/loans/:loan_type", post(request_loan))
         .layer(from_fn_with_state(app_state, auth0_middleware));
     Router::new().merge(public_routes).merge(private_routes)
 }

@@ -50,9 +50,10 @@ impl BankruptcyService {
                     .portfolio_management_service
                     .get_total_portfolio_value(user_id)
                     .await?;
+                let liabilities = loan.get_current_balance();
                 let credit_score = Self::calculate_credit_score(
                     current_cash_balance + portfolio_value,
-                    loan.get_current_balance(),
+                    liabilities.0 + liabilities.1,
                 );
                 if credit_score < BigDecimal::from(Self::CREDIT_SCORE_THRESHOLD) {
                     return Ok(true);

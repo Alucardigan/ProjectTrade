@@ -7,7 +7,7 @@ use strum::Display;
 use strum::EnumString;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Display, EnumString, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Display, EnumString, Serialize, Deserialize, sqlx::Type, PartialEq)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 #[sqlx(type_name = "loan_status", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum LoanStatus {
@@ -33,6 +33,7 @@ impl LoanType {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Loan {
     pub loan_id: Uuid,
     pub user_id: Uuid,
@@ -63,8 +64,7 @@ impl Loan {
             last_paid_at,
         }
     }
-    pub fn get_current_balance(&self) -> BigDecimal {
-        let mut balance = self.principal.clone();
+    pub fn get_current_balance(&self) -> (BigDecimal, BigDecimal) {
         let interest_rate = BigDecimal::from(1 + &self.interest_rate / 365);
         let days = Utc::now()
             .signed_duration_since(self.last_paid_at)
@@ -76,7 +76,7 @@ impl Loan {
         };
 
         let interest_rate_over_time = pow(interest_rate, u_days);
-        balance += &self.principal * interest_rate_over_time;
-        balance
+        let balance = &self.principal * interest_rate_over_time;
+        (&balance - &self.principal, self.principal.clone())
     }
 }
