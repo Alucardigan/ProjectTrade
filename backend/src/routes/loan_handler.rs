@@ -2,6 +2,7 @@ use axum::{
     extract::{Path, State},
     Extension, Json,
 };
+use bigdecimal::BigDecimal;
 use uuid::Uuid;
 
 use crate::{
@@ -11,7 +12,9 @@ use crate::{
         loan::{Loan, LoanType},
     },
 };
-
+pub struct RepayLoanRequest {
+    amount: BigDecimal,
+}
 pub async fn request_loan(
     State(app_state): State<AppState>,
     Extension(user_id): Extension<Uuid>,
@@ -30,4 +33,16 @@ pub async fn get_loan(
 ) -> Result<Json<Loan>, ApiError> {
     let loan = app_state.loan_service.get_loan(user_id).await?;
     Ok(Json(loan))
+}
+
+pub async fn repay_loan(
+    State(app_state): State<AppState>,
+    Extension(user_id): Extension<Uuid>,
+    Json(request_body): Json<RepayLoanRequest>,
+) -> Result<(), ApiError> {
+    app_state
+        .loan_service
+        .repay_loan(user_id, request_body.amount)
+        .await?;
+    Ok(())
 }

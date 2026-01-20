@@ -110,16 +110,15 @@ impl LoanService {
         }
 
         let (accrued_interest, principal) = loan.get_current_balance();
+        let acutal_payment_amount = min(&payment_amount, &(&accrued_interest + &principal)).clone();
         self.account_management_service
-            .deduct_user_balance(
-                user_id,
-                &min(payment_amount.clone(), &accrued_interest + &principal),
-            )
+            .deduct_user_balance(user_id, &acutal_payment_amount)
             .await?;
 
         //pay the accrued interest first
-        let remaining_interest = &accrued_interest - min(&payment_amount, &accrued_interest);
-        let remaning_payment_amount = &payment_amount - min(&payment_amount, &accrued_interest);
+        let remaining_interest = &accrued_interest - min(&acutal_payment_amount, &accrued_interest);
+        let remaning_payment_amount =
+            &payment_amount - min(&acutal_payment_amount, &accrued_interest);
         let mut remaining_principal = &principal - &remaning_payment_amount;
         remaining_principal += &remaining_interest;
         if remaining_principal <= BigDecimal::from(0) {
