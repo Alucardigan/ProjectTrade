@@ -65,7 +65,7 @@ impl Loan {
         }
     }
     pub fn get_current_balance(&self) -> (BigDecimal, BigDecimal) {
-        let interest_rate = BigDecimal::from(1 + &self.interest_rate / 365);
+        let interest_rate = BigDecimal::from(1) + &self.interest_rate / BigDecimal::from(365);
         let days = Utc::now()
             .signed_duration_since(self.last_paid_at)
             .num_days();
