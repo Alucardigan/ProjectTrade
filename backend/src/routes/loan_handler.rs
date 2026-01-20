@@ -3,6 +3,7 @@ use axum::{
     Extension, Json,
 };
 use bigdecimal::BigDecimal;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
@@ -12,6 +13,7 @@ use crate::{
         loan::{Loan, LoanType},
     },
 };
+#[derive(Serialize, Deserialize)]
 pub struct RepayLoanRequest {
     amount: BigDecimal,
 }
