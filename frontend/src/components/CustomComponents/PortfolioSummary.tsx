@@ -1,18 +1,19 @@
 import { Card } from "@/components/retroui/Card";
 import { Text } from "@/components/retroui/Text";
 import { Badge } from "@/components/retroui/Badge";
-import { DollarSign, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Wallet, CreditCard } from "lucide-react";
 
 interface PortfolioSummaryProps {
     totalValue: number;
     totalGain: number;
     totalCost: number;
     gainPercentage: number;
+    totalLiabilities: number;
 }
 
-export const PortfolioSummary = ({ totalValue, totalGain, totalCost, gainPercentage }: PortfolioSummaryProps) => {
+export const PortfolioSummary = ({ totalValue, totalGain, totalCost, gainPercentage, totalLiabilities }: PortfolioSummaryProps) => {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card className="w-full bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200">
                 <Card.Content className="p-6">
                     <div className="flex justify-between items-start">
@@ -64,6 +65,22 @@ export const PortfolioSummary = ({ totalValue, totalGain, totalCost, gainPercent
                         </div>
                         <div className="p-3 bg-purple-100 rounded-lg border-2 border-black">
                             <DollarSign className="w-6 h-6 text-purple-700" />
+                        </div>
+                    </div>
+                </Card.Content>
+            </Card>
+
+            <Card className="w-full bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200">
+                <Card.Content className="p-6">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <Text className="text-gray-500 font-bold text-xs uppercase tracking-wider">Total Liabilities</Text>
+                            <Text as="h2" className="mt-2 text-3xl font-black text-red-600">
+                                ${totalLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </Text>
+                        </div>
+                        <div className="p-3 bg-red-100 rounded-lg border-2 border-black">
+                            <CreditCard className="w-6 h-6 text-red-700" />
                         </div>
                     </div>
                 </Card.Content>
