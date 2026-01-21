@@ -28,7 +28,7 @@ pub async fn request_loan(
         .await?;
     Ok(())
 }
-
+#[tracing::instrument(skip(app_state, user_id))]
 pub async fn get_loan(
     State(app_state): State<AppState>,
     Extension(user_id): Extension<Uuid>,

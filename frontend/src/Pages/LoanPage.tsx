@@ -66,6 +66,7 @@ const LoanPage = () => {
         if (!activeLoan || !activeLoan.principal) return null;
 
         const principal = Number(activeLoan.principal);
+        const originalAmount = Number(activeLoan.original_loan_amount);
         const rate = Number(activeLoan.interest_rate);
         const lastPaid = new Date(activeLoan.last_paid_at);
         const now = new Date();
@@ -80,10 +81,18 @@ const LoanPage = () => {
         const totalDue = principal * interestRateOverTime;
         const accruedInterest = totalDue - principal;
 
+        // Calculate progress based on principal reduction
+        // If originalAmount is 0 (shouldn't happen for valid loans), avoid NaN
+        const progress = originalAmount > 0
+            ? Math.max(0, Math.min(100, ((originalAmount - principal) / originalAmount) * 100))
+            : 0;
+
         return {
             principal,
+            originalAmount,
             accruedInterest,
-            totalDue
+            totalDue,
+            progress
         };
     }, [activeLoan]);
 
@@ -139,9 +148,14 @@ const LoanPage = () => {
                                         <Text as="h2" className="text-5xl font-black text-gray-900 mt-2">
                                             ${loanDetails.totalDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </Text>
-                                        <div className="flex gap-4 mt-2 text-sm font-medium text-gray-600">
-                                            <span>Principal: ${loanDetails.principal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                            <span className="text-red-600">+ Interest: ${loanDetails.accruedInterest.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        <div className="flex flex-col gap-1 mt-2 text-sm font-medium text-gray-600">
+                                            <div className="flex gap-4">
+                                                <span>Principal: ${loanDetails.principal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                <span className="text-red-600">+ Interest: ${loanDetails.accruedInterest.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <div className="text-gray-400">
+                                                Original Loan: ${loanDetails.originalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="bg-blue-50 px-4 py-2 rounded border-2 border-blue-200">
@@ -153,14 +167,18 @@ const LoanPage = () => {
                                 <div className="mb-8">
                                     <div className="flex justify-between text-sm font-bold mb-2">
                                         <Text>Repayment Progress</Text>
-                                        <Text>0% Paid</Text>
+                                        <Text>{loanDetails.progress.toFixed(1)}% Paid</Text>
                                     </div>
-                                    <div className="h-4 bg-gray-200 rounded-full border-2 border-black overflow-hidden">
-                                        {/* Since we don't track original loan amount easily here without extra logic, we'll just show a full bar for outstanding. 
-                                            Ideally, you'd want (Original - Current) / Original. For now, let's just show a visual indicator of debt. */}
-                                        <div className="h-full bg-red-500 w-full animate-pulse" title="Outstanding Debt"></div>
+                                    <div className="h-4 bg-gray-200 rounded-full border-2 border-black overflow-hidden relative">
+                                        <div
+                                            className="h-full bg-green-500 transition-all duration-500 ease-out"
+                                            style={{ width: `${loanDetails.progress}%` }}
+                                            title="Repaid Amount"
+                                        ></div>
                                     </div>
-                                    <Text className="text-xs text-gray-500 mt-2 text-right">Debt is accruing interest daily.</Text>
+                                    <Text className="text-xs text-gray-500 mt-2 text-right">
+                                        ${(loanDetails.originalAmount - loanDetails.principal).toLocaleString(undefined, { minimumFractionDigits: 2 })} repaid of principal
+                                    </Text>
                                 </div>
 
                                 {/* Repayment Form */}

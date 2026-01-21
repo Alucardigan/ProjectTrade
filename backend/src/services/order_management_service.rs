@@ -71,7 +71,7 @@ impl OrderManagementService {
             OrderType::Buy => {
                 // Reserve funds
                 self.account_management_service
-                    .reserve_funds(user_id, total_purchase_price)
+                    .reserve_funds(user_id, &total_purchase_price)
                     .await?;
             }
             OrderType::Sell => {

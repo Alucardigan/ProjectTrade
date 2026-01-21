@@ -14,9 +14,16 @@ export const requestLoan = async (loanType: LoanType) => {
     return response.data;
 };
 
-export const getLoan = async (): Promise<Loan> => {
-    const response = await axios.get(`api/loans`);
-    return response.data;
+export const getLoan = async (): Promise<Loan | null> => {
+    try {
+        const response = await axios.get(`api/loans`);
+        return response.data;
+    } catch (error: any) {
+        if (error.response && error.response.data && error.response.data.error === "User does not have a loan") {
+            return null;
+        }
+        throw error;
+    }
 };
 
 export const repayLoan = async (amount: number) => {
