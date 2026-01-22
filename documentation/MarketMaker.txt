@@ -1,0 +1,16 @@
+THE MARKET MAKER: ticker service rework 
+Current ticket service fetches market data for specific tickers via an API call to alpha vantage. 
+This is not scalable and very easily hits the daily limit of 25 requests. Due to the limited number of 
+calls that can be made, the service is mostly reliant on mock DB data which is very hardcoded and also outdated. 
+
+Proposed solution: 
+THE MARKET MAKER will be a reworked ticker service that at the start of the day (run on boot up or cron job): 
+- makes a series of batch calls for a large number of tickers on their OPENING price. These are loaded in RAM/ HASHMAP. 
+- It will then check the DB for previous closing prices of the ticket in the DB. This is the stock app's opening price. 
+- Using brownian motion, it will then begin to generate movements towards the price that was determined by today's opening price. 
+
+FOR EXAMPLE:
+Chosen ticker: AAPL
+closing price : 150 
+real world opening price : 160
+market maker from here will gradually fluctuate the market towards 160 and ensures it hits the 160 by the end of the day 

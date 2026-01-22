@@ -29,6 +29,10 @@ pub enum UserError {
     ),
     #[error("HTTP Client Error: {0}")]
     ReqwestError(#[from] reqwest::Error),
+    #[error("User does not have a loan")]
+    UserDoesNotHaveLoan,
+    #[error("User already has a loan")]
+    UserAlreadyHasLoan,
 }
 use crate::models::errors::api_error::ApiError;
 
@@ -50,6 +54,12 @@ impl From<UserError> for ApiError {
             UserError::CSRFMismatch => ApiError::BadRequest("CSRF Mismatch".to_string()),
             UserError::TokenExchange(e) => ApiError::InternalServerError(e.to_string()),
             UserError::ReqwestError(e) => ApiError::InternalServerError(e.to_string()),
+            UserError::UserDoesNotHaveLoan => {
+                ApiError::BadRequest("User does not have a loan".to_string())
+            }
+            UserError::UserAlreadyHasLoan => {
+                ApiError::BadRequest("User already has a loan".to_string())
+            }
         }
     }
 }

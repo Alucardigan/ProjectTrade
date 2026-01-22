@@ -1,9 +1,7 @@
+use crate::models::order::OrderType;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
-use crate::models::order::OrderStatus;
-use crate::models::order::OrderType;
 #[derive(Serialize, Deserialize)]
 pub struct Transaction {
     pub transaction_id: Uuid,

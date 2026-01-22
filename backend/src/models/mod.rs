@@ -1,5 +1,6 @@
 pub mod authentication;
 pub mod errors;
+pub mod loan;
 pub mod order;
 pub mod portfolio_ticker;
 pub mod stock_ticker;

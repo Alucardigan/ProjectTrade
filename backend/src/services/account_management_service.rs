@@ -54,9 +54,9 @@ impl AccountManagementService {
     pub async fn reserve_funds(
         &self,
         user_id: Uuid,
-        reserve_amount: BigDecimal,
+        reserve_amount: &BigDecimal,
     ) -> Result<(), TradeError> {
-        if reserve_amount <= BigDecimal::zero() {
+        if reserve_amount <= &BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
         tracing::debug!("Reserving funds {} for user {}", reserve_amount, user_id);
@@ -125,5 +125,15 @@ impl AccountManagementService {
         } else {
             Err(TradeError::UserError(UserError::InsufficientFunds))
         }
+    }
+    pub async fn reset_user_balance(&self, user_id: Uuid) -> Result<(), TradeError> {
+        sqlx::query(
+            "UPDATE users SET balance = 100000, available_balance = 100000 WHERE user_id = $1",
+        )
+        .bind(user_id)
+        .execute(&self.db)
+        .await
+        .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
+        Ok(())
     }
 }

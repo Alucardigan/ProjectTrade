@@ -7,6 +7,7 @@ import { RefreshCw, Plus, Loader2 } from "lucide-react";
 import { DashboardNavbar } from "@/components/CustomComponents/DashboardNavbar";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPortfolio } from "../api/portfolio";
+import { getLoan } from "../api/loans";
 import type { PortfolioResponse } from "../types/Portfolio_Response";
 import { useNavigate } from "react-router-dom";
 
@@ -17,9 +18,15 @@ const defaultPortfolioResponse: PortfolioResponse = {
 
 const PortfolioPage = () => {
     const navigate = useNavigate();
-    const { data: portfolioResponse, isLoading, refetch } = useQuery({
+    const { data: portfolioResponse, isLoading: isPortfolioLoading, refetch: refetchPortfolio } = useQuery({
         queryKey: ['portfolio'],
         queryFn: fetchPortfolio,
+    });
+
+    const { data: loan, isLoading: isLoanLoading, refetch: refetchLoan } = useQuery({
+        queryKey: ['loan'],
+        queryFn: getLoan,
+        retry: false,
     });
 
     const activePortfolio = portfolioResponse || defaultPortfolioResponse;
@@ -41,7 +48,39 @@ const PortfolioPage = () => {
 
     const gainPercentage = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
 
-    if (isLoading) {
+    const totalLiabilities = useMemo(() => {
+        if (!loan) return 0;
+        // If the API returns an error structure or empty object, handle it
+        if (!loan.principal) return 0;
+
+        const principal = Number(loan.principal);
+        const rate = Number(loan.interest_rate);
+        const lastPaid = new Date(loan.last_paid_at);
+        const now = new Date();
+
+        // Calculate days elapsed
+        const timeDiff = now.getTime() - lastPaid.getTime();
+        const days = Math.floor(timeDiff / (1000 * 3600 * 24));
+
+        // Backend formula: 
+        // Daily rate = (rate / 100) / 365
+        // Balance = Principal * (1 + Daily Rate) ^ Days
+
+        const dailyRate = (rate / 100) / 365;
+        const interestRate = 1 + dailyRate;
+        const interestRateOverTime = Math.pow(interestRate, Math.max(0, days));
+
+        return principal * interestRateOverTime;
+    }, [loan]);
+
+    const handleRefetch = () => {
+        refetchPortfolio();
+        refetchLoan();
+    };
+
+    // Only show loading if portfolio is loading. 
+    // Loan loading is secondary, or if it fails (404) we just show 0.
+    if (isPortfolioLoading) {
         return (
             <div className="min-h-screen bg-yellow-50/50 font-sans flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
@@ -79,8 +118,8 @@ const PortfolioPage = () => {
                                 <Text className="text-xs text-gray-500 font-bold uppercase">Last Updated</Text>
                                 <Text className="text-gray-900 font-mono font-bold">{new Date().toLocaleTimeString()}</Text>
                             </div>
-                            <Button variant="default" size="icon" onClick={() => refetch()}>
-                                <RefreshCw className="w-5 h-5" />
+                            <Button variant="default" size="icon" onClick={handleRefetch}>
+                                <RefreshCw className={`w-5 h-5 ${isLoanLoading ? 'animate-spin' : ''}`} />
                             </Button>
                         </div>
                     </div>
@@ -92,6 +131,7 @@ const PortfolioPage = () => {
                     totalGain={totalGain}
                     totalCost={totalCost}
                     gainPercentage={gainPercentage}
+                    totalLiabilities={totalLiabilities}
                 />
 
                 {/* Holdings List */}

@@ -1,5 +1,6 @@
 pub mod account_handler;
 pub mod health;
+pub mod loan_handler;
 pub mod middleware;
 pub mod oms_handler;
 pub mod portfolio_handler;

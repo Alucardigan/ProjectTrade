@@ -8,12 +8,10 @@ use crate::{
         portfolio_management_service::PortfolioManagementService, ticker_service::TickerService,
     },
 };
-use num_traits::ToPrimitive;
 use sqlx::Row;
 use sqlx::{types::BigDecimal, PgPool};
-use std::str::FromStr;
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 use uuid::Uuid;
 
 #[derive(Clone)]

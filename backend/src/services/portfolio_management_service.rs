@@ -18,6 +18,14 @@ impl PortfolioManagementService {
     pub fn new(db: PgPool, ticker_service: Arc<TickerService>) -> Self {
         Self { db, ticker_service }
     }
+    pub async fn get_total_portfolio_value(&self, user_id: Uuid) -> Result<BigDecimal, TradeError> {
+        let portfolio = self.get_portfolio(user_id).await?;
+        let mut total_portfolio_value = BigDecimal::from(0);
+        for portfolio_item in portfolio {
+            total_portfolio_value += portfolio_item.total_profit + portfolio_item.total_money_spent;
+        }
+        Ok(total_portfolio_value)
+    }
     #[tracing::instrument(skip(self))]
     pub async fn get_portfolio(&self, user_id: Uuid) -> Result<Vec<PortfolioTicker>, TradeError> {
         let database_portfolio = sqlx::query("SELECT * FROM portfolio WHERE user_id = $1")
