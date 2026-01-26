@@ -64,6 +64,7 @@ impl MarketMakerService {
             let mut ticker_price_paths = self.ticker_price_paths.write().await;
             ticker_price_paths.insert(ticker.clone(), market_orders);
         }
+        self.spawn_worker_thread().await;
         Ok(())
     }
     pub async fn generate_market_orders(
@@ -80,18 +81,16 @@ impl MarketMakerService {
         Ok(price_path)
     }
 
-    fn spawn_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
+    async fn spawn_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
         let orderbook = self.order_matchbook_service.clone();
+        let current_price_paths = self.ticker_price_paths.read().await.clone();
+        let current_time = Utc::now();
+        let current_time_index =
+            current_time.time().hour() as u32 * 60 + current_time.time().minute() as u32;
+        let acceptable_tickers = self.acceptable_tickers.clone();
         tokio::spawn(async move {
-            let current_time = Utc::now();
-            let current_time_index =
-                current_time.time().hour() as u32 * 60 + current_time.time().minute() as u32;
-
-            for ticker in self.acceptable_tickers {
-                let target_price = self
-                    .ticker_price_paths
-                    .read()
-                    .await
+            for ticker in acceptable_tickers {
+                let target_price = current_price_paths
                     .get(&ticker)
                     .unwrap()
                     .get(current_time_index as usize)
