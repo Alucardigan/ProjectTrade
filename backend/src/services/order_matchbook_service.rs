@@ -32,7 +32,7 @@ impl OrderMatchbookService {
     pub async fn add_order(&self, order: Order) -> Result<(), TradeError> {
         let ticker = order.ticker.clone();
         let mut books = self.order_books.write().await;
-        let mut order_book = books.entry(ticker).or_insert_with_key(|ticker| OrderBook {
+        let order_book = books.entry(ticker).or_insert_with_key(|ticker| OrderBook {
             ticker: ticker.clone(),
             buys: BTreeMap::new(),
             sells: BTreeMap::new(),
