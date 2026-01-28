@@ -1,4 +1,3 @@
-use crate::app_state;
 use crate::routes::account_handler::{
     add_to_user_balance, get_account_balance, get_transaction_history, withdraw_funds,
 };
