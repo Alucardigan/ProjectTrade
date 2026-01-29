@@ -6,7 +6,8 @@ use crate::{
         order::{Order, OrderStatus, OrderType},
     },
     services::{
-        account_management_service::AccountManagementService,
+        account_management_service::AccountManagementService, order_management_service,
+        order_matchbook_service::OrderMatchbookService,
         portfolio_management_service::PortfolioManagementService, ticker_service::TickerService,
         user_service::UserService,
     },
@@ -24,6 +25,7 @@ pub struct OrderManagementService {
     pub trade_service: Arc<TickerService>,
     pub account_management_service: Arc<AccountManagementService>,
     pub portfolio_management_service: Arc<PortfolioManagementService>,
+    pub order_matchbook_service: Arc<OrderMatchbookService>,
 }
 
 #[allow(dead_code)]
@@ -34,6 +36,7 @@ impl OrderManagementService {
         trade_service: Arc<TickerService>,
         account_management_service: Arc<AccountManagementService>,
         portfolio_management_service: Arc<PortfolioManagementService>,
+        order_matchbook_service: Arc<OrderMatchbookService>,
     ) -> Self {
         Self {
             db,
@@ -41,6 +44,7 @@ impl OrderManagementService {
             trade_service,
             account_management_service,
             portfolio_management_service,
+            order_matchbook_service,
         }
     }
 
@@ -86,22 +90,7 @@ impl OrderManagementService {
             }
         }
         //Placing order
-        sqlx::query(
-            "INSERT INTO orders 
-        (order_id, user_id, ticker, quantity, price_per_share, order_type, status) 
-        VALUES ($1, $2, $3, $4, $5, $6::order_type, $7::order_status)",
-        )
-        .bind(order_id)
-        .bind(user_id)
-        .bind(ticker)
-        .bind(quantity.clone())
-        .bind(&price_per_share)
-        .bind(&order_type)
-        .bind(&status)
-        .execute(&self.db)
-        .await
-        .map_err(|e| TradeError::DatabaseError(e))?;
-        Ok(Order {
+        let created_order = Order {
             order_id,
             user_id,
             ticker: ticker.to_string(),
@@ -109,7 +98,11 @@ impl OrderManagementService {
             price_per_share,
             order_type,
             status,
-        })
+        };
+        self.order_matchbook_service
+            .add_order(created_order.clone())
+            .await?;
+        Ok(created_order)
     }
 
     #[tracing::instrument(skip(self))]
