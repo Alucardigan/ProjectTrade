@@ -6,7 +6,7 @@ use crate::{
         order::{Order, OrderStatus, OrderType},
     },
     services::{
-        account_management_service::AccountManagementService, order_management_service,
+        account_management_service::AccountManagementService,
         order_matchbook_service::OrderMatchbookService,
         portfolio_management_service::PortfolioManagementService, ticker_service::TickerService,
         user_service::UserService,
