@@ -92,22 +92,30 @@ impl OrderMatchbookService {
             loop {
                 interval.tick().await;
                 let books = order_books.read().await;
+                let mut buy_ids = Vec::new();
+                let mut sell_ids = Vec::new();
                 for (ticker, order_book) in books.iter() {
                     if let Ok((best_buy, best_sell)) = order_book.get_best_sale() {
                         if best_buy.price_per_share > best_sell.price_per_share {
-                            //call trade engine
-                            match trade_service.execute_order(best_buy.order_id).await {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    warn!(error = ?e, "Failed to execute order");
-                                }
-                            }
-                            match trade_service.execute_order(best_sell.order_id).await {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    warn!(error = ?e, "Failed to execute order");
-                                }
-                            }
+                            buy_ids.push(best_buy.order_id);
+                            sell_ids.push(best_sell.order_id);
+                        }
+                    }
+                }
+                // This is currently N+1 and also non atomic. Refactor trade to get better perf
+                for buy_id in buy_ids {
+                    match trade_service.execute_order(buy_id).await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            warn!(error = ?e, "Failed to execute order");
+                        }
+                    }
+                }
+                for sell_id in sell_ids {
+                    match trade_service.execute_order(sell_id).await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            warn!(error = ?e, "Failed to execute order");
                         }
                     }
                 }
