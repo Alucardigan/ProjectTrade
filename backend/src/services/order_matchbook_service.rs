@@ -13,7 +13,7 @@ use crate::{
         errors::trade_error::TradeError,
         order::{Order, OrderType},
     },
-    services::trade_service::{self, TradeService},
+    services::trade_service::TradeService,
 };
 
 struct OrderBook {
@@ -28,12 +28,12 @@ impl OrderBook {
             .buys
             .iter()
             .next_back()
-            .map(|(_, orders)| orders[0].clone());
+            .and_then(|(_, orders)| orders.first().cloned());
         let best_sell = self
             .sells
             .iter()
             .next()
-            .map(|(_, orders)| orders[0].clone());
+            .and_then(|(_, orders)| orders.first().cloned());
         match (best_buy, best_sell) {
             (Some(best_buy), Some(best_sell)) => Ok((best_buy, best_sell)),
             _ => Err(TradeError::NoMatchForOrder),
@@ -103,6 +103,19 @@ impl OrderMatchbookService {
                     }
                 }
                 // This is currently N+1 and also non atomic. Refactor trade to get better perf
+                {
+                    let mut books = order_books.write().await;
+                    for (ticker, order_book) in books.iter_mut() {
+                        order_book.buys.retain(|_, orders| {
+                            orders.retain(|o| !buy_ids.contains(&o.order_id));
+                            !orders.is_empty()
+                        });
+                        order_book.sells.retain(|_, orders| {
+                            orders.retain(|o| !sell_ids.contains(&o.order_id));
+                            !orders.is_empty()
+                        });
+                    }
+                }
                 for buy_id in buy_ids {
                     match trade_service.execute_order(buy_id).await {
                         Ok(_) => {}
