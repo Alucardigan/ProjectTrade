@@ -7,13 +7,14 @@ use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 use tokio::{sync::RwLock, task::JoinHandle};
 use tracing::warn;
+use uuid::Uuid;
 
 use crate::{
     models::{
         errors::trade_error::TradeError,
         order::{Order, OrderType},
     },
-    services::trade_service::TradeService,
+    services::{order_management_service, trade_service::TradeService},
 };
 
 struct OrderBook {
@@ -92,47 +93,73 @@ impl OrderMatchbookService {
             loop {
                 interval.tick().await;
                 let books = order_books.read().await;
-                let mut buy_ids = Vec::new();
-                let mut sell_ids = Vec::new();
+                let mut buy_ids: Vec<(Uuid, BigDecimal)> = Vec::new();
+                let mut sell_ids: Vec<(Uuid, BigDecimal)> = Vec::new();
                 for (_ticker, order_book) in books.iter() {
                     if let Ok((best_buy, best_sell)) = order_book.get_best_sale() {
                         if best_buy.price_per_share >= best_sell.price_per_share {
-                            buy_ids.push(best_buy.order_id);
-                            sell_ids.push(best_sell.order_id);
+                            let match_quantity = best_buy.quantity.min(best_sell.quantity);
+                            buy_ids.push((best_buy.order_id, match_quantity.clone()));
+                            sell_ids.push((best_sell.order_id, match_quantity));
                         }
                     }
                 }
                 // This is currently N+1 and also non atomic. Refactor trade to get better perf
+                //execute orders
+                let mut successful_buys = HashMap::new();
+                let mut successful_sells = HashMap::new();
+
+                for (buy_id, match_quantity) in buy_ids {
+                    match trade_service
+                        .execute_order(buy_id, match_quantity.clone())
+                        .await
+                    {
+                        Ok(_) => {
+                            successful_buys.insert(buy_id, match_quantity);
+                        }
+                        Err(e) => {
+                            warn!(error = ?e, "Failed to execute order");
+                        }
+                    }
+                }
+                for (sell_id, match_quantity) in sell_ids {
+                    match trade_service
+                        .execute_order(sell_id, match_quantity.clone())
+                        .await
+                    {
+                        Ok(_) => {
+                            successful_sells.insert(sell_id, match_quantity);
+                        }
+                        Err(e) => {
+                            warn!(error = ?e, "Failed to execute order");
+                        }
+                    }
+                }
+                /*
+                Why cant this be done in the Ok() section of the match?:
+                would have to acquire write lock everytime for every single match. Needlessly pointless
+                */
                 {
                     let mut books = order_books.write().await;
                     for (_ticker, order_book) in books.iter_mut() {
-                        //retain requires a function that returns a boolean
                         order_book.buys.retain(|_, orders| {
-                            //inner retain removes the specified order
-                            orders.retain(|o| !buy_ids.contains(&o.order_id));
-                            //if orders is empty, we return false i.e delete the key value pair from the map
+                            for order in orders.iter_mut() {
+                                if let Some(qty) = successful_buys.get(&order.order_id) {
+                                    order.quantity -= qty;
+                                }
+                            }
+                            orders.retain(|o| o.quantity > BigDecimal::from(0));
                             !orders.is_empty()
                         });
                         order_book.sells.retain(|_, orders| {
-                            orders.retain(|o| !sell_ids.contains(&o.order_id));
+                            for order in orders.iter_mut() {
+                                if let Some(qty) = successful_sells.get(&order.order_id) {
+                                    order.quantity -= qty;
+                                }
+                            }
+                            orders.retain(|o| o.quantity > BigDecimal::from(0));
                             !orders.is_empty()
                         });
-                    }
-                }
-                for buy_id in buy_ids {
-                    match trade_service.execute_order(buy_id).await {
-                        Ok(_) => {}
-                        Err(e) => {
-                            warn!(error = ?e, "Failed to execute order");
-                        }
-                    }
-                }
-                for sell_id in sell_ids {
-                    match trade_service.execute_order(sell_id).await {
-                        Ok(_) => {}
-                        Err(e) => {
-                            warn!(error = ?e, "Failed to execute order");
-                        }
                     }
                 }
             }

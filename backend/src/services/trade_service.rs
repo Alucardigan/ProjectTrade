@@ -56,22 +56,27 @@ impl TradeService {
         })
     }
     #[tracing::instrument(skip(self))]
-    pub async fn execute_order(&self, order_id: Uuid) -> Result<(), TradeError> {
+    pub async fn execute_order(
+        &self,
+        order_id: Uuid,
+        fullfilment_quantity: BigDecimal,
+    ) -> Result<(), TradeError> {
         let order = self.get_order(order_id).await?;
         //validation checks
         if order.status != OrderStatus::Pending {
             warn!("Order is not in pending state: {}", order.status);
             return Err(TradeError::InvalidOrderStatus);
         }
-        if order.quantity < BigDecimal::from(0) {
+        if order.quantity < BigDecimal::from(0) && order.quantity < fullfilment_quantity {
             return Err(TradeError::InvalidAmount);
         }
+        //TODO: refactor price getting here
         let price = self
             .ticker_service
             .search_symbol(&order.ticker)
             .await
             .price_per_share;
-        let total_purchase_price = &price * &order.quantity;
+        let total_purchase_price = &price * &fullfilment_quantity;
         match order.order_type {
             OrderType::Buy => {
                 self.account_management_service
@@ -96,12 +101,21 @@ impl TradeService {
             }
         }
         self.log_transaction(&order).await?;
-        sqlx::query("UPDATE orders SET status = $2 WHERE order_id = $1")
-            .bind(order_id)
-            .bind(OrderStatus::Executed)
-            .execute(&self.db)
-            .await
-            .map_err(|e| TradeError::DatabaseError(e))?;
+        if fullfilment_quantity < order.quantity {
+            sqlx::query("UPDATE orders SET quantity = $2 WHERE order_id = $1")
+                .bind(order_id)
+                .bind(order.quantity - fullfilment_quantity)
+                .execute(&self.db)
+                .await
+                .map_err(|e| TradeError::DatabaseError(e))?;
+        } else {
+            sqlx::query("UPDATE orders SET status = $2 WHERE order_id = $1")
+                .bind(order_id)
+                .bind(OrderStatus::Executed)
+                .execute(&self.db)
+                .await
+                .map_err(|e| TradeError::DatabaseError(e))?;
+        }
         Ok(())
     }
 
@@ -129,35 +143,36 @@ impl TradeService {
         Ok(orders)
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn create_order_processor(
-        self: Arc<Self>,
-    ) -> tokio::task::JoinHandle<Result<(), TradeError>> {
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
-                Self::ORDER_PROCESSOR_INTERVAL_SECS,
-            ));
-            loop {
-                interval.tick().await;
-                match self.get_pending_orders().await {
-                    Ok(pending_orders) => {
-                        info!(count = pending_orders.len(), "Processing pending orders");
-                        for order in pending_orders {
-                            match self.execute_order(order.order_id).await {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    warn!(error = ?e, "Failed to execute order");
-                                }
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        warn!(error = ?e, "Failed to fetch pending orders");
-                    }
-                }
-            }
-        })
-    }
+    //deprecated
+    // #[tracing::instrument(skip(self))]
+    // pub fn create_order_processor(
+    //     self: Arc<Self>,
+    // ) -> tokio::task::JoinHandle<Result<(), TradeError>> {
+    //     tokio::spawn(async move {
+    //         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
+    //             Self::ORDER_PROCESSOR_INTERVAL_SECS,
+    //         ));
+    //         loop {
+    //             interval.tick().await;
+    //             match self.get_pending_orders().await {
+    //                 Ok(pending_orders) => {
+    //                     info!(count = pending_orders.len(), "Processing pending orders");
+    //                     for order in pending_orders {
+    //                         match self.execute_order(order.order_id).await {
+    //                             Ok(_) => {}
+    //                             Err(e) => {
+    //                                 warn!(error = ?e, "Failed to execute order");
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //                 Err(e) => {
+    //                     warn!(error = ?e, "Failed to fetch pending orders");
+    //                 }
+    //             }
+    //         }
+    //     })
+    // }
 
     #[tracing::instrument(skip(self))]
     async fn log_transaction(&self, order: &Order) -> Result<(), TradeError> {
