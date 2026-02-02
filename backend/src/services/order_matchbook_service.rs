@@ -27,12 +27,12 @@ impl OrderBook {
         let best_buy = self
             .buys
             .iter()
-            .next_back()
+            .next_back() //get highest price
             .and_then(|(_, orders)| orders.first().cloned());
         let best_sell = self
             .sells
             .iter()
-            .next()
+            .next() //get lowest price
             .and_then(|(_, orders)| orders.first().cloned());
         match (best_buy, best_sell) {
             (Some(best_buy), Some(best_sell)) => Ok((best_buy, best_sell)),
@@ -94,9 +94,9 @@ impl OrderMatchbookService {
                 let books = order_books.read().await;
                 let mut buy_ids = Vec::new();
                 let mut sell_ids = Vec::new();
-                for (ticker, order_book) in books.iter() {
+                for (_ticker, order_book) in books.iter() {
                     if let Ok((best_buy, best_sell)) = order_book.get_best_sale() {
-                        if best_buy.price_per_share > best_sell.price_per_share {
+                        if best_buy.price_per_share >= best_sell.price_per_share {
                             buy_ids.push(best_buy.order_id);
                             sell_ids.push(best_sell.order_id);
                         }
@@ -105,9 +105,12 @@ impl OrderMatchbookService {
                 // This is currently N+1 and also non atomic. Refactor trade to get better perf
                 {
                     let mut books = order_books.write().await;
-                    for (ticker, order_book) in books.iter_mut() {
+                    for (_ticker, order_book) in books.iter_mut() {
+                        //retain requires a function that returns a boolean
                         order_book.buys.retain(|_, orders| {
+                            //inner retain removes the specified order
                             orders.retain(|o| !buy_ids.contains(&o.order_id));
+                            //if orders is empty, we return false i.e delete the key value pair from the map
                             !orders.is_empty()
                         });
                         order_book.sells.retain(|_, orders| {
