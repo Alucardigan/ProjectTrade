@@ -14,7 +14,7 @@ use crate::{
         errors::trade_error::TradeError,
         order::{Order, OrderType},
     },
-    services::{order_management_service, trade_service::TradeService},
+    services::trade_service::TradeService,
 };
 
 struct OrderBook {
