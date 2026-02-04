@@ -102,6 +102,21 @@ impl OrderManagementService {
         self.order_matchbook_service
             .add_order(created_order.clone())
             .await?;
+        let _rec = sqlx::query(
+            "INSERT INTO orders 
+        (order_id, user_id, ticker, quantity, price_per_share, order_type, status) 
+        VALUES ($1, $2, $3, $4, $5, $6::order_type, $7::order_status)",
+        )
+        .bind(&created_order.order_id)
+        .bind(&created_order.user_id)
+        .bind(&created_order.ticker)
+        .bind(&created_order.quantity)
+        .bind(&created_order.price_per_share)
+        .bind(&created_order.order_type)
+        .bind(&created_order.status)
+        .execute(&self.db)
+        .await
+        .map_err(|e| TradeError::DatabaseError(e))?;
         Ok(created_order)
     }
 

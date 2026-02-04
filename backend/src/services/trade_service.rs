@@ -71,12 +71,7 @@ impl TradeService {
             return Err(TradeError::InvalidAmount);
         }
         //TODO: refactor price getting here
-        let price = self
-            .ticker_service
-            .search_symbol(&order.ticker)
-            .await
-            .price_per_share;
-        let total_purchase_price = &price * &fullfilment_quantity;
+        let total_purchase_price = &order.price_per_share * &fullfilment_quantity;
         match order.order_type {
             OrderType::Buy => {
                 self.account_management_service

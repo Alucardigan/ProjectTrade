@@ -21,6 +21,7 @@ pub struct MarketMakerService {
     order_matchbook_service: Arc<OrderMatchbookService>,
     acceptable_tickers: Vec<String>,
     ticker_price_paths: RwLock<HashMap<String, Vec<BigDecimal>>>,
+    market_maker_user_id: Uuid,
 }
 
 impl MarketMakerService {
@@ -31,6 +32,7 @@ impl MarketMakerService {
         ticker_service: Arc<TickerService>,
         order_matchbook_service: Arc<OrderMatchbookService>,
         acceptable_tickers: Vec<String>,
+        user_id: Uuid,
     ) -> Self {
         Self {
             db,
@@ -38,6 +40,7 @@ impl MarketMakerService {
             order_matchbook_service,
             acceptable_tickers,
             ticker_price_paths: RwLock::new(HashMap::new()),
+            market_maker_user_id: user_id,
         }
     }
 
@@ -88,6 +91,8 @@ impl MarketMakerService {
         let current_time_index =
             current_time.time().hour() as u32 * 60 + current_time.time().minute() as u32;
         let acceptable_tickers = self.acceptable_tickers.clone();
+        let user_id = self.market_maker_user_id;
+
         tokio::spawn(async move {
             for ticker in acceptable_tickers {
                 let target_price = current_price_paths
@@ -95,16 +100,26 @@ impl MarketMakerService {
                     .unwrap()
                     .get(current_time_index as usize)
                     .unwrap(); //TODO: something better than unwrap here pls
-                let order = Order {
+                let buy_order = Order {
                     order_id: Uuid::new_v4(),
-                    user_id: Uuid::new_v4(),
+                    user_id,
                     ticker: ticker.clone(),
                     quantity: BigDecimal::from(Self::STOCK_QUANTITY),
                     price_per_share: target_price.clone(),
                     order_type: OrderType::Buy,
                     status: OrderStatus::Pending,
                 };
-                orderbook.add_order(order).await?;
+                let sell_order = Order {
+                    order_id: Uuid::new_v4(),
+                    user_id,
+                    ticker: ticker.clone(),
+                    quantity: BigDecimal::from(Self::STOCK_QUANTITY),
+                    price_per_share: target_price.clone(),
+                    order_type: OrderType::Sell,
+                    status: OrderStatus::Pending,
+                };
+                orderbook.add_order(buy_order).await?;
+                orderbook.add_order(sell_order).await?;
             }
             Ok(())
         })
