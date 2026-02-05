@@ -7,6 +7,7 @@ use crate::services::portfolio_management_service::PortfolioManagementService;
 use crate::services::ticker_service::TickerService;
 use crate::services::trade_service::TradeService;
 use crate::services::user_service::UserService;
+use crate::services::{market_maker_service, order_matchbook_service};
 use sqlx::PgPool;
 use std::sync::Arc;
 
@@ -37,6 +38,15 @@ impl AppState {
             portfolio_service.clone(),
             authentication_client.clone(),
         ));
+        let trade_service = Arc::new(TradeService::new(
+            db.clone(),
+            ticker_service.clone(),
+            account_management_service.clone(),
+            portfolio_service.clone(),
+        ));
+        let order_matchbook_service = Arc::new(
+            order_matchbook_service::OrderMatchbookService::new(db.clone(), trade_service.clone()),
+        );
 
         let order_management_service = Arc::new(OrderManagementService::new(
             db.clone(),
@@ -44,14 +54,9 @@ impl AppState {
             ticker_service.clone(),
             account_management_service.clone(),
             portfolio_service.clone(),
+            order_matchbook_service.clone(),
         ));
 
-        let trade_service = Arc::new(TradeService::new(
-            db.clone(),
-            ticker_service.clone(),
-            account_management_service.clone(),
-            portfolio_service.clone(),
-        ));
         let loan_service = Arc::new(LoanService::new(
             db.clone(),
             account_management_service.clone(),
@@ -68,10 +73,9 @@ impl AppState {
             loan_service,
         }
     }
-    pub fn start_background_processes(
-        &self,
-    ) -> Vec<tokio::task::JoinHandle<Result<(), TradeError>>> {
-        tracing::info!("Starting background processes");
-        vec![self.trade_service.clone().create_order_processor()]
-    }
+    // pub fn start_background_processes(
+    //     &self,
+    // ) -> Vec<tokio::task::JoinHandle<Result<(), TradeError>>> {
+    //     tracing::info!("Starting background processes");
+    // }
 }

@@ -4,9 +4,7 @@ use crate::routes::account_handler::{
 use crate::routes::health::health;
 use crate::routes::loan_handler::{get_loan, repay_loan, request_loan};
 use crate::routes::middleware::auth0_middleware;
-use crate::routes::oms_handler::{
-    cancel_order, get_order, get_order_status, get_pending_orders, place_order,
-};
+use crate::routes::oms_handler::{cancel_order, get_order, get_pending_orders, place_order};
 use crate::routes::portfolio_handler::get_portfolio;
 use crate::routes::user_handler::{auth0_callback, login_user};
 use crate::{app_state::AppState, routes::ticker_handler::get_ticker};
