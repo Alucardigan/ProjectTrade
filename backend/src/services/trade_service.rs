@@ -11,7 +11,7 @@ use crate::{
 use sqlx::Row;
 use sqlx::{types::BigDecimal, PgPool};
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::warn;
 use uuid::Uuid;
 
 #[derive(Clone)]
