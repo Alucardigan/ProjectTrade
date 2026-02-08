@@ -18,7 +18,6 @@ use crate::{
 };
 
 struct OrderBook {
-    ticker: String,
     buys: BTreeMap<BigDecimal, Vec<Order>>,
     sells: BTreeMap<BigDecimal, Vec<Order>>,
 }
@@ -67,8 +66,7 @@ impl OrderMatchbookService {
         let ticker = order.ticker.clone();
         let mut books = self.order_books.write().await;
         info!("Adding order to orderbook for ticker {}", ticker);
-        let order_book = books.entry(ticker).or_insert_with_key(|ticker| OrderBook {
-            ticker: ticker.clone(),
+        let order_book = books.entry(ticker).or_insert_with_key(|_ticker| OrderBook {
             buys: BTreeMap::new(),
             sells: BTreeMap::new(),
         });
