@@ -15,6 +15,7 @@ use crate::{
 use sqlx::types::BigDecimal;
 use sqlx::PgPool;
 use sqlx::Row;
+use tracing::info;
 use uuid::Uuid;
 
 #[allow(dead_code)]
@@ -59,6 +60,7 @@ impl OrderManagementService {
         _price_buffer: BigDecimal,
     ) -> Result<Order, TradeError> {
         // TODO : Add atomicity to this function
+        info!("Placing order for user {}", user_id);
         let order_id = Uuid::new_v4();
         let status = OrderStatus::Pending;
         if quantity < BigDecimal::from(0) {
@@ -89,6 +91,7 @@ impl OrderManagementService {
                 }
             }
         }
+        info!("Attempting to add order to orderbook");
         //Placing order
         let created_order = Order {
             order_id,
@@ -102,6 +105,7 @@ impl OrderManagementService {
         self.order_matchbook_service
             .add_order(created_order.clone())
             .await?;
+        info!("Order added to orderbook successfully");
         let _rec = sqlx::query(
             "INSERT INTO orders 
         (order_id, user_id, ticker, quantity, price_per_share, order_type, status) 

@@ -4,6 +4,7 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use rand_distr::{Distribution, Normal};
 use sqlx::{PgPool, Row};
 use tokio::{sync::RwLock, task::JoinHandle};
+use tracing::info;
 use uuid::Uuid;
 
 use crate::{
@@ -85,11 +86,11 @@ impl MarketMakerService {
     }
 
     async fn spawn_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
+        info!("Starting market maker thread");
         let orderbook = self.order_matchbook_service.clone();
         let current_price_paths = self.ticker_price_paths.read().await.clone();
         let current_time = Utc::now();
-        let current_time_index =
-            current_time.time().hour() as u32 * 60 + current_time.time().minute() as u32;
+        let current_time_index = current_time.time().hour() * 60 + current_time.time().minute();
         let acceptable_tickers = self.acceptable_tickers.clone();
         let user_id = self.market_maker_user_id;
 

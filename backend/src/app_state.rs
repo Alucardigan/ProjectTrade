@@ -3,13 +3,14 @@ use crate::models::errors::trade_error::TradeError;
 use crate::services::account_management_service::AccountManagementService;
 use crate::services::loan_service::LoanService;
 use crate::services::order_management_service::OrderManagementService;
+use crate::services::order_matchbook_service::{self, OrderMatchbookService};
 use crate::services::portfolio_management_service::PortfolioManagementService;
 use crate::services::ticker_service::TickerService;
 use crate::services::trade_service::TradeService;
 use crate::services::user_service::UserService;
-use crate::services::{market_maker_service, order_matchbook_service};
 use sqlx::PgPool;
 use std::sync::Arc;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -17,6 +18,7 @@ pub struct AppState {
     pub user_service: Arc<UserService>,
     pub ticker_service: Arc<TickerService>,
     pub trade_service: Arc<TradeService>,
+    pub order_matchbook_service: Arc<OrderMatchbookService>,
     pub portfolio_service: Arc<PortfolioManagementService>,
     pub account_management_service: Arc<AccountManagementService>,
     pub order_management_service: Arc<OrderManagementService>,
@@ -24,7 +26,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(db: PgPool, api_key: &str) -> Self {
+    pub fn new(db: PgPool, api_key: &str, system_user_id: Uuid) -> Self {
         let ticker_service = Arc::new(TickerService::new(api_key, db.clone()));
         let account_management_service = Arc::new(AccountManagementService::new(db.clone()));
         let authentication_client = Arc::new(AuthorizationClient::new());
@@ -44,9 +46,12 @@ impl AppState {
             account_management_service.clone(),
             portfolio_service.clone(),
         ));
-        let order_matchbook_service = Arc::new(
-            order_matchbook_service::OrderMatchbookService::new(db.clone(), trade_service.clone()),
-        );
+        let order_matchbook_service =
+            Arc::new(order_matchbook_service::OrderMatchbookService::new(
+                db.clone(),
+                trade_service.clone(),
+                ticker_service.clone(),
+            ));
 
         let order_management_service = Arc::new(OrderManagementService::new(
             db.clone(),
@@ -71,11 +76,17 @@ impl AppState {
             account_management_service,
             order_management_service,
             loan_service,
+            order_matchbook_service,
         }
     }
-    // pub fn start_background_processes(
-    //     &self,
-    // ) -> Vec<tokio::task::JoinHandle<Result<(), TradeError>>> {
-    //     tracing::info!("Starting background processes");
-    // }
+    pub async fn start_background_processes(
+        &self,
+    ) -> Vec<tokio::task::JoinHandle<Result<(), TradeError>>> {
+        tracing::info!("Starting background processes");
+        let mut handles: Vec<tokio::task::JoinHandle<Result<(), TradeError>>> = Vec::new();
+        self.order_matchbook_service.initialise_orderbooks().await;
+
+        handles.push(self.order_matchbook_service.create_worker_thread());
+        return handles;
+    }
 }

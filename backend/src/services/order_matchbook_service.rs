@@ -6,7 +6,7 @@ use std::{
 use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 use tokio::{sync::RwLock, task::JoinHandle};
-use tracing::warn;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
         errors::trade_error::TradeError,
         order::{Order, OrderType},
     },
-    services::trade_service::TradeService,
+    services::{ticker_service::TickerService, trade_service::TradeService},
 };
 
 struct OrderBook {
@@ -45,20 +45,28 @@ pub struct OrderMatchbookService {
     db: PgPool,
     order_books: Arc<RwLock<HashMap<String, OrderBook>>>,
     trade_service: Arc<TradeService>,
+    ticker_service: Arc<TickerService>,
 }
 
 impl OrderMatchbookService {
-    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 100;
-    pub fn new(db: PgPool, trade_service: Arc<TradeService>) -> OrderMatchbookService {
+    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 1;
+    pub fn new(
+        db: PgPool,
+        trade_service: Arc<TradeService>,
+        ticker_service: Arc<TickerService>,
+    ) -> OrderMatchbookService {
         OrderMatchbookService {
             db,
             order_books: Arc::new(RwLock::new(HashMap::new())),
             trade_service,
+            ticker_service,
         }
     }
+
     pub async fn add_order(&self, order: Order) -> Result<(), TradeError> {
         let ticker = order.ticker.clone();
         let mut books = self.order_books.write().await;
+        info!("Adding order to orderbook for ticker {}", ticker);
         let order_book = books.entry(ticker).or_insert_with_key(|ticker| OrderBook {
             ticker: ticker.clone(),
             buys: BTreeMap::new(),
@@ -83,7 +91,17 @@ impl OrderMatchbookService {
         Ok(())
     }
 
-    pub async fn create_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
+    pub async fn initialise_orderbooks(&self) -> Result<(), TradeError> {
+        //load up all pending orders
+        let pending_orders = self.trade_service.get_pending_orders().await?;
+        for order in pending_orders {
+            self.add_order(order).await?;
+        }
+        Ok(())
+    }
+
+    pub fn create_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
+        info!("Starting order processor thread");
         let order_books = Arc::clone(&self.order_books);
         let trade_service = Arc::clone(&self.trade_service);
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
@@ -92,15 +110,17 @@ impl OrderMatchbookService {
         tokio::spawn(async move {
             loop {
                 interval.tick().await;
-                let books = order_books.read().await;
                 let mut buy_ids: Vec<(Uuid, BigDecimal)> = Vec::new();
                 let mut sell_ids: Vec<(Uuid, BigDecimal)> = Vec::new();
-                for (_ticker, order_book) in books.iter() {
-                    if let Ok((best_buy, best_sell)) = order_book.get_best_sale() {
-                        if best_buy.price_per_share >= best_sell.price_per_share {
-                            let match_quantity = best_buy.quantity.min(best_sell.quantity);
-                            buy_ids.push((best_buy.order_id, match_quantity.clone()));
-                            sell_ids.push((best_sell.order_id, match_quantity));
+                {
+                    let books = order_books.read().await;
+                    for (_ticker, order_book) in books.iter() {
+                        if let Ok((best_buy, best_sell)) = order_book.get_best_sale() {
+                            if best_buy.price_per_share >= best_sell.price_per_share {
+                                let match_quantity = best_buy.quantity.min(best_sell.quantity);
+                                buy_ids.push((best_buy.order_id, match_quantity.clone()));
+                                sell_ids.push((best_sell.order_id, match_quantity));
+                            }
                         }
                     }
                 }

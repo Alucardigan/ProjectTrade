@@ -5,6 +5,7 @@ use dotenv::dotenv;
 use sqlx::PgPool;
 use std::env;
 use tracing::info;
+use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -20,9 +21,12 @@ async fn main() -> Result<()> {
     //database setup
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL NOT FOUND");
     let _db = PgPool::connect(&db_url).await?;
+    let system_user_id =
+        Uuid::parse_str(&env::var("marketmaker.user_id").expect("marketmaker.user_id NOT FOUND"))
+            .expect("marketmaker.user_id NOT FOUND");
 
-    let app_state = AppState::new(_db, "mock");
-    let _task_handles = app_state.start_background_processes();
+    let app_state = AppState::new(_db, "mock", system_user_id);
+    let _task_handles = app_state.start_background_processes().await;
     let app = create_router(app_state.clone()).with_state(app_state);
     let listener = tokio::net::TcpListener::bind("localhost:3000").await?;
     info!(

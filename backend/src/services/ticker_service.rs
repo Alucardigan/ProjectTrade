@@ -5,6 +5,7 @@ use num_traits::Zero;
 use sqlx::PgPool;
 use sqlx::Row;
 
+use crate::models::errors::trade_error::TradeError;
 use crate::models::stock_ticker::Ticker;
 
 #[derive(Clone)]
@@ -87,6 +88,19 @@ impl TickerService {
             price_per_share: stock_time_prices[0].clone(),
             trend: stock_time_prices,
         };
+    }
+
+    pub async fn get_active_stocks(&self) -> Vec<String> {
+        sqlx::query("SELECT distinct ticker FROM stock_prices")
+            .fetch_all(&self.mock_db)
+            .await
+            .map_err(|e| TradeError::DatabaseError(e))
+            .map(|rows| {
+                rows.iter()
+                    .map(|row| row.try_get("ticker").unwrap())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     #[tracing::instrument(skip(self))]
