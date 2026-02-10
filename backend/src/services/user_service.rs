@@ -5,12 +5,8 @@ use crate::authentication::basic_client::AuthorizationClient;
 use crate::models::errors::user_error::UserError;
 use crate::services::account_management_service::AccountManagementService;
 use crate::services::portfolio_management_service::PortfolioManagementService;
-
-use oauth2::basic::BasicTokenType;
-use oauth2::EmptyExtraTokenFields;
-use oauth2::StandardTokenResponse;
 use oauth2::TokenResponse;
-use oauth2::{AuthorizationCode, CsrfToken, PkceCodeVerifier};
+use oauth2::{CsrfToken, PkceCodeVerifier};
 use sqlx::PgPool;
 use sqlx::Row;
 use uuid::Uuid;
