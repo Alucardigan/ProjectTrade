@@ -5,6 +5,7 @@ use crate::authentication::basic_client::AuthorizationClient;
 use crate::models::errors::user_error::UserError;
 use crate::services::account_management_service::AccountManagementService;
 use crate::services::portfolio_management_service::PortfolioManagementService;
+use bigdecimal::BigDecimal;
 use oauth2::TokenResponse;
 use oauth2::{CsrfToken, PkceCodeVerifier};
 use sqlx::PgPool;
@@ -66,6 +67,18 @@ impl UserService {
         Ok(inserted_user_id)
     }
 
+    pub async fn create_system_user(&self, system_user_id: Uuid) -> Result<Uuid, UserError> {
+        sqlx::query("DELETE FROM users WHERE user_id = $1")
+            .bind(system_user_id)
+            .execute(&self.user_db)
+            .await
+            .map_err(|e| UserError::DatabaseError(e))?;
+        self.upsert_user(system_user_id, "system", "system", "system@system.com")
+            .await?;
+        self.account_management_service
+            .add_user_balance(system_user_id, &BigDecimal::from(100000000));
+        Ok(system_user_id)
+    }
     //should this function exist?
     #[tracing::instrument(skip(self))]
     pub async fn get_user_uuid(&self, username: &str) -> Result<Uuid, UserError> {
