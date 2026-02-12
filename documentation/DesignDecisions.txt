@@ -79,3 +79,7 @@ These layers can be layered on top of each other like stack trace
 
 Adding a accont management service and portfolio management service to remove functionally from user service and better adhere to single responsibility principles 
 I found the user service implementation too long and therefore am refactoring it down.  Orchestration between these services happen mostly in trade service and OMS services. 
+
+I need to add super users so market orders can be executed without any validation. Should super users ignore validation and execution or should they be infinite users?
+- Can't do synthetic orders because my code is service based and not that OOP
+- I can abstract away the validation logic to be seperate for market makers and users, but I cannot abstract trade execution logic atm. 
