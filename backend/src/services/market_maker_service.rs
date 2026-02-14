@@ -63,10 +63,19 @@ impl MarketMakerService {
      * initialise the worker thread to use the price path to place orders
      **/
     pub async fn initialise_market(&self) -> Result<(), TradeError> {
+        info!(
+            "Initialising market for tickers : {:?}",
+            self.acceptable_tickers
+        );
         for ticker in &self.acceptable_tickers {
+            info!("Generating market orders for ticker: {}", ticker);
             let market_orders = self.generate_market_orders(ticker.clone()).await?;
             let mut ticker_price_paths = self.ticker_price_paths.write().await;
             ticker_price_paths.insert(ticker.clone(), market_orders);
+            info!(
+                "ticker_price_paths {:?} for ticker: {}",
+                ticker_price_paths, ticker
+            );
         }
         self.spawn_worker_thread().await;
         Ok(())
@@ -75,17 +84,18 @@ impl MarketMakerService {
         &self,
         ticker: String,
     ) -> Result<Vec<BigDecimal>, TradeError> {
-        let market_price = self.ticker_service.search_symbol(&ticker).await;
+        let market_price = self.ticker_service.search_symbol(&ticker).await?;
         let current_price = self.get_current_price(&ticker).await?;
         let price_path = Self::brownian_motion(
             ToPrimitive::to_f64(&market_price.price_per_share).unwrap_or(0.0),
             ToPrimitive::to_f64(&current_price).unwrap_or(0.0),
             Self::TIME_STEP,
         );
+        info!("price_path {:?} for ticker: {}", price_path, ticker);
         Ok(price_path)
     }
 
-    async fn spawn_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
+    pub async fn spawn_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
         info!("Starting market maker thread");
         let orderbook = self.order_matchbook_service.clone();
         let current_price_paths = self.ticker_price_paths.read().await.clone();
@@ -93,6 +103,10 @@ impl MarketMakerService {
         let current_time_index = current_time.time().hour() * 60 + current_time.time().minute();
         let acceptable_tickers = self.acceptable_tickers.clone();
         let user_id = self.market_maker_user_id;
+        info!("acceptable_tickers {:?}", acceptable_tickers);
+        info!("current_price_paths {:?}", current_price_paths);
+        info!("current_time_index {}", current_time_index);
+        info!("user_id {}", user_id);
 
         tokio::spawn(async move {
             for ticker in acceptable_tickers {
@@ -121,6 +135,7 @@ impl MarketMakerService {
                 };
                 orderbook.add_order(buy_order).await?;
                 orderbook.add_order(sell_order).await?;
+                info!("Created market orders")
             }
             Ok(())
         })

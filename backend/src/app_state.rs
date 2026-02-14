@@ -2,6 +2,7 @@ use crate::authentication::basic_client::AuthorizationClient;
 use crate::models::errors::trade_error::TradeError;
 use crate::services::account_management_service::AccountManagementService;
 use crate::services::loan_service::LoanService;
+use crate::services::market_maker_service;
 use crate::services::order_management_service::OrderManagementService;
 use crate::services::order_matchbook_service::{self, OrderMatchbookService};
 use crate::services::portfolio_management_service::PortfolioManagementService;
@@ -23,6 +24,7 @@ pub struct AppState {
     pub account_management_service: Arc<AccountManagementService>,
     pub order_management_service: Arc<OrderManagementService>,
     pub loan_service: Arc<LoanService>,
+    pub market_maker_service: Arc<market_maker_service::MarketMakerService>,
 }
 
 impl AppState {
@@ -53,6 +55,13 @@ impl AppState {
                 ticker_service.clone(),
             ));
 
+        let market_maker_service = Arc::new(market_maker_service::MarketMakerService::new(
+            db.clone(),
+            ticker_service.clone(),
+            order_matchbook_service.clone(),
+            vec!["AAPL".to_string(), "GOOGL".to_string(), "MSFT".to_string()],
+            system_user_id,
+        ));
         let order_management_service = Arc::new(OrderManagementService::new(
             db.clone(),
             user_service.clone(),
@@ -77,6 +86,7 @@ impl AppState {
             order_management_service,
             loan_service,
             order_matchbook_service,
+            market_maker_service,
         }
     }
     pub async fn start_background_processes(
@@ -85,8 +95,10 @@ impl AppState {
         tracing::info!("Starting background processes");
         let mut handles: Vec<tokio::task::JoinHandle<Result<(), TradeError>>> = Vec::new();
         self.order_matchbook_service.initialise_orderbooks().await;
+        self.market_maker_service.initialise_market().await;
 
         handles.push(self.order_matchbook_service.create_worker_thread());
+        handles.push(self.market_maker_service.spawn_worker_thread().await);
         return handles;
     }
 }

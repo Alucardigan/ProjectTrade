@@ -11,6 +11,6 @@ pub async fn get_ticker(
     Path(symbol): Path<String>,
 ) -> Result<Json<Vec<Ticker>>, ApiError> {
     Ok(Json(vec![
-        app_state.ticker_service.search_symbol(&symbol).await,
+        app_state.ticker_service.search_symbol(&symbol).await?,
     ]))
 }
