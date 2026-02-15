@@ -58,6 +58,7 @@ impl OrderManagementService {
         quantity: BigDecimal,
         order_type: OrderType,
         _price_buffer: BigDecimal,
+        price_per_share: Option<BigDecimal>,
     ) -> Result<Order, TradeError> {
         // TODO : Add atomicity to this function
         info!("Placing order for user {}", user_id);
@@ -67,11 +68,15 @@ impl OrderManagementService {
             return Err(TradeError::InvalidAmount);
         }
         //price calculation
-        let price_per_share = self
-            .trade_service
-            .search_symbol(ticker)
-            .await?
-            .price_per_share;
+        let price_per_share = match price_per_share {
+            Some(price) => price,
+            None => {
+                self.trade_service
+                    .search_symbol(ticker)
+                    .await?
+                    .price_per_share
+            }
+        };
         let total_purchase_price = &price_per_share * &quantity;
         match order_type {
             OrderType::Buy => {

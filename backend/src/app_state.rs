@@ -11,10 +11,12 @@ use crate::services::trade_service::TradeService;
 use crate::services::user_service::UserService;
 use sqlx::PgPool;
 use std::sync::Arc;
+use tracing::info;
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AppState {
+    system_user_id: Uuid,
     pub db: PgPool,
     pub user_service: Arc<UserService>,
     pub ticker_service: Arc<TickerService>,
@@ -55,13 +57,6 @@ impl AppState {
                 ticker_service.clone(),
             ));
 
-        let market_maker_service = Arc::new(market_maker_service::MarketMakerService::new(
-            db.clone(),
-            ticker_service.clone(),
-            order_matchbook_service.clone(),
-            vec!["AAPL".to_string(), "GOOGL".to_string(), "MSFT".to_string()],
-            system_user_id,
-        ));
         let order_management_service = Arc::new(OrderManagementService::new(
             db.clone(),
             user_service.clone(),
@@ -70,6 +65,14 @@ impl AppState {
             portfolio_service.clone(),
             order_matchbook_service.clone(),
         ));
+        let market_maker_service = Arc::new(market_maker_service::MarketMakerService::new(
+            db.clone(),
+            ticker_service.clone(),
+            order_matchbook_service.clone(),
+            order_management_service.clone(),
+            vec!["AAPL".to_string(), "GOOGL".to_string(), "MSFT".to_string()],
+            system_user_id,
+        ));
 
         let loan_service = Arc::new(LoanService::new(
             db.clone(),
@@ -77,6 +80,7 @@ impl AppState {
         ));
         tracing::info!("App state created & all services are operational");
         Self {
+            system_user_id,
             db,
             user_service,
             ticker_service,
@@ -94,6 +98,11 @@ impl AppState {
     ) -> Vec<tokio::task::JoinHandle<Result<(), TradeError>>> {
         tracing::info!("Starting background processes");
         let mut handles: Vec<tokio::task::JoinHandle<Result<(), TradeError>>> = Vec::new();
+        let ticker_ids = vec!["AAPL".to_string(), "GOOGL".to_string(), "MSFT".to_string()];
+        info!("Ticker ids: {:?}", ticker_ids);
+        self.user_service
+            .create_system_user(self.system_user_id, ticker_ids)
+            .await;
         self.order_matchbook_service.initialise_orderbooks().await;
         self.market_maker_service.initialise_market().await;
 

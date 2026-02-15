@@ -2,14 +2,17 @@ use std::sync::Arc;
 
 use crate::authentication::basic_client::Auth0LoginResponse;
 use crate::authentication::basic_client::AuthorizationClient;
+use crate::models::errors::trade_error::TradeError;
 use crate::models::errors::user_error::UserError;
 use crate::services::account_management_service::AccountManagementService;
 use crate::services::portfolio_management_service::PortfolioManagementService;
 use bigdecimal::BigDecimal;
+use num_traits::Zero;
 use oauth2::TokenResponse;
 use oauth2::{CsrfToken, PkceCodeVerifier};
 use sqlx::PgPool;
 use sqlx::Row;
+use tracing::info;
 use uuid::Uuid;
 //current implementation assumes no Errors
 #[allow(dead_code)]
@@ -67,7 +70,11 @@ impl UserService {
         Ok(inserted_user_id)
     }
 
-    pub async fn create_system_user(&self, system_user_id: Uuid) -> Result<Uuid, UserError> {
+    pub async fn create_system_user(
+        &self,
+        system_user_id: Uuid,
+        ticker_ids: Vec<String>,
+    ) -> Result<Uuid, TradeError> {
         sqlx::query("DELETE FROM users WHERE user_id = $1")
             .bind(system_user_id)
             .execute(&self.user_db)
@@ -76,7 +83,19 @@ impl UserService {
         self.upsert_user(system_user_id, "system", "system", "system@system.com")
             .await?;
         self.account_management_service
-            .add_user_balance(system_user_id, &BigDecimal::from(100000000));
+            .add_user_balance(system_user_id, &BigDecimal::from(100000000))
+            .await?;
+        info!("System user created with user_id: {}", system_user_id);
+        for ticker_id in ticker_ids {
+            self.portfolio_management_service
+                .add_to_portfolio(
+                    system_user_id,
+                    &ticker_id,
+                    &BigDecimal::from(100000000),
+                    &BigDecimal::zero(),
+                )
+                .await?;
+        }
         Ok(system_user_id)
     }
     //should this function exist?

@@ -4,6 +4,7 @@ use num_traits::FromPrimitive;
 use num_traits::Zero;
 use sqlx::PgPool;
 use sqlx::Row;
+use tracing::info;
 
 use crate::models::errors::trade_error::TradeError;
 use crate::models::stock_ticker::Ticker;
@@ -27,6 +28,7 @@ impl TickerService {
 
     #[tracing::instrument(skip(self))]
     pub async fn search_symbol(&self, symbol: &str) -> Result<Ticker, TradeError> {
+        info!("Searching for price of ticker: {}", symbol);
         if self.api_client.get_api_key() == "mock" {
             let prices = sqlx::query(
                 "SELECT close FROM stock_prices WHERE symbol = $1 ORDER BY time DESC LIMIT 5",
@@ -50,6 +52,7 @@ impl TickerService {
             });
             let zero = &BigDecimal::zero();
             let price = prices.first().unwrap_or(zero);
+            info!("Current price {} for ticker {}", price, symbol);
             return Ok(Ticker {
                 symbol: symbol.into(),
                 price_per_share: price.clone(),
@@ -83,6 +86,10 @@ impl TickerService {
                 prices
             }
         };
+        info!(
+            "Current price {} for ticker {}",
+            stock_time_prices[0], symbol
+        );
         return Ok(Ticker {
             symbol: symbol.into(),
             price_per_share: stock_time_prices[0].clone(),

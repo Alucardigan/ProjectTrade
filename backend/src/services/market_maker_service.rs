@@ -1,6 +1,6 @@
 use bigdecimal::BigDecimal;
 use chrono::{Timelike, Utc};
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use rand_distr::{Distribution, Normal};
 use sqlx::{PgPool, Row};
 use tokio::{sync::RwLock, task::JoinHandle};
@@ -12,7 +12,10 @@ use crate::{
         errors::trade_error::TradeError,
         order::{Order, OrderStatus, OrderType},
     },
-    services::{order_matchbook_service::OrderMatchbookService, ticker_service::TickerService},
+    services::{
+        order_management_service::OrderManagementService,
+        order_matchbook_service::OrderMatchbookService, ticker_service::TickerService,
+    },
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -20,18 +23,20 @@ pub struct MarketMakerService {
     db: PgPool,
     ticker_service: Arc<TickerService>,
     order_matchbook_service: Arc<OrderMatchbookService>,
+    order_management_service: Arc<OrderManagementService>,
     acceptable_tickers: Vec<String>,
     ticker_price_paths: RwLock<HashMap<String, Vec<BigDecimal>>>,
     market_maker_user_id: Uuid,
 }
 
 impl MarketMakerService {
-    const TIME_STEP: u32 = 1440;
+    const TIME_STEP: u32 = 24;
     const STOCK_QUANTITY: u32 = 100;
     pub fn new(
         db: PgPool,
         ticker_service: Arc<TickerService>,
         order_matchbook_service: Arc<OrderMatchbookService>,
+        order_management_service: Arc<OrderManagementService>,
         acceptable_tickers: Vec<String>,
         user_id: Uuid,
     ) -> Self {
@@ -39,21 +44,33 @@ impl MarketMakerService {
             db,
             ticker_service,
             order_matchbook_service,
+            order_management_service,
             acceptable_tickers,
             ticker_price_paths: RwLock::new(HashMap::new()),
             market_maker_user_id: user_id,
         }
     }
 
-    pub async fn get_current_price(&self, ticker: &String) -> Result<BigDecimal, TradeError> {
-        let current_price: BigDecimal = sqlx::query(
-            "SELECT close FROM stock_prices WHERE symbol = $1 ORDER BY time DESC LIMIT 1",
+    pub async fn get_current_price(
+        &self,
+        ticker: &String,
+    ) -> Result<Option<BigDecimal>, TradeError> {
+        info!("get current price");
+        let current_price_opt = sqlx::query(
+            "SELECT close FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1",
         )
         .bind(ticker)
-        .fetch_one(&self.db)
-        .await?
-        .try_get("close")?;
-        Ok(current_price)
+        .fetch_optional(&self.db)
+        .await?;
+
+        if let Some(row) = current_price_opt {
+            let price: BigDecimal = row.try_get("close")?;
+            info!("Current price {} for ticker {}", price, ticker);
+            Ok(Some(price))
+        } else {
+            info!("No current price found for ticker {}", ticker);
+            Ok(None)
+        }
     }
 
     /**everyday we intialise the market
@@ -72,12 +89,8 @@ impl MarketMakerService {
             let market_orders = self.generate_market_orders(ticker.clone()).await?;
             let mut ticker_price_paths = self.ticker_price_paths.write().await;
             ticker_price_paths.insert(ticker.clone(), market_orders);
-            info!(
-                "ticker_price_paths {:?} for ticker: {}",
-                ticker_price_paths, ticker
-            );
         }
-        self.spawn_worker_thread().await;
+        // self.spawn_worker_thread().await;
         Ok(())
     }
     pub async fn generate_market_orders(
@@ -85,56 +98,61 @@ impl MarketMakerService {
         ticker: String,
     ) -> Result<Vec<BigDecimal>, TradeError> {
         let market_price = self.ticker_service.search_symbol(&ticker).await?;
-        let current_price = self.get_current_price(&ticker).await?;
+        let current_price_opt = self.get_current_price(&ticker).await?;
+        let start_price = match current_price_opt {
+            Some(price) => price,
+            None => market_price.price_per_share.clone(),
+        };
+
         let price_path = Self::brownian_motion(
             ToPrimitive::to_f64(&market_price.price_per_share).unwrap_or(0.0),
-            ToPrimitive::to_f64(&current_price).unwrap_or(0.0),
+            ToPrimitive::to_f64(&start_price).unwrap_or(0.0),
             Self::TIME_STEP,
         );
-        info!("price_path {:?} for ticker: {}", price_path, ticker);
         Ok(price_path)
     }
 
     pub async fn spawn_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
         info!("Starting market maker thread");
         let orderbook = self.order_matchbook_service.clone();
+        let order_management_service = self.order_management_service.clone();
         let current_price_paths = self.ticker_price_paths.read().await.clone();
         let current_time = Utc::now();
         let current_time_index = current_time.time().hour() * 60 + current_time.time().minute();
         let acceptable_tickers = self.acceptable_tickers.clone();
         let user_id = self.market_maker_user_id;
         info!("acceptable_tickers {:?}", acceptable_tickers);
-        info!("current_price_paths {:?}", current_price_paths);
         info!("current_time_index {}", current_time_index);
         info!("user_id {}", user_id);
 
         tokio::spawn(async move {
             for ticker in acceptable_tickers {
+                let default_value = BigDecimal::from(120);
                 let target_price = current_price_paths
                     .get(&ticker)
                     .unwrap()
                     .get(current_time_index as usize)
-                    .unwrap(); //TODO: something better than unwrap here pls
-                let buy_order = Order {
-                    order_id: Uuid::new_v4(),
-                    user_id,
-                    ticker: ticker.clone(),
-                    quantity: BigDecimal::from(Self::STOCK_QUANTITY),
-                    price_per_share: target_price.clone(),
-                    order_type: OrderType::Buy,
-                    status: OrderStatus::Pending,
-                };
-                let sell_order = Order {
-                    order_id: Uuid::new_v4(),
-                    user_id,
-                    ticker: ticker.clone(),
-                    quantity: BigDecimal::from(Self::STOCK_QUANTITY),
-                    price_per_share: target_price.clone(),
-                    order_type: OrderType::Sell,
-                    status: OrderStatus::Pending,
-                };
-                orderbook.add_order(buy_order).await?;
-                orderbook.add_order(sell_order).await?;
+                    .unwrap_or(&default_value); //TODO: something better than unwrap here pls
+                order_management_service
+                    .place_order(
+                        user_id,
+                        &ticker.clone(),
+                        BigDecimal::from(Self::STOCK_QUANTITY),
+                        OrderType::Buy,
+                        BigDecimal::zero(),
+                        Some(target_price.clone()),
+                    )
+                    .await?;
+                order_management_service
+                    .place_order(
+                        user_id,
+                        &ticker.clone(),
+                        BigDecimal::from(Self::STOCK_QUANTITY),
+                        OrderType::Sell,
+                        BigDecimal::zero(),
+                        Some(target_price.clone()),
+                    )
+                    .await?;
                 info!("Created market orders")
             }
             Ok(())

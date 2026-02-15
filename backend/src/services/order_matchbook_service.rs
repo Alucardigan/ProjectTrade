@@ -24,6 +24,7 @@ struct OrderBook {
 
 impl OrderBook {
     pub fn get_best_sale(&self) -> Result<(Order, Order), TradeError> {
+        info!("Getting best sale");
         let best_buy = self
             .buys
             .iter()
@@ -34,6 +35,7 @@ impl OrderBook {
             .iter()
             .next() //get lowest price
             .and_then(|(_, orders)| orders.first().cloned());
+        info!("Best buy: {:?}, Best sell: {:?}", best_buy, best_sell);
         match (best_buy, best_sell) {
             (Some(best_buy), Some(best_sell)) => Ok((best_buy, best_sell)),
             _ => Err(TradeError::NoMatchForOrder),
@@ -48,7 +50,7 @@ pub struct OrderMatchbookService {
 }
 
 impl OrderMatchbookService {
-    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 1;
+    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 10;
     pub fn new(
         db: PgPool,
         trade_service: Arc<TradeService>,
@@ -112,7 +114,9 @@ impl OrderMatchbookService {
                 let mut sell_ids: Vec<(Uuid, BigDecimal)> = Vec::new();
                 {
                     let books = order_books.read().await;
+                    info!("Are we even reading the same books? {}", books.len());
                     for (_ticker, order_book) in books.iter() {
+                        info!("Processing orderbook for ticker {}", _ticker);
                         if let Ok((best_buy, best_sell)) = order_book.get_best_sale() {
                             if best_buy.price_per_share >= best_sell.price_per_share {
                                 let match_quantity = best_buy.quantity.min(best_sell.quantity);
@@ -122,18 +126,24 @@ impl OrderMatchbookService {
                         }
                     }
                 }
+                info!(
+                    "Found {} buy orders and {} sell orders",
+                    buy_ids.len(),
+                    sell_ids.len()
+                );
                 // This is currently N+1 and also non atomic. Refactor trade to get better perf
                 //execute orders
                 let mut successful_buys = HashMap::new();
                 let mut successful_sells = HashMap::new();
-
                 for (buy_id, match_quantity) in buy_ids {
+                    info!("Executing buy order for user {}", buy_id);
                     match trade_service
                         .execute_order(buy_id, match_quantity.clone())
                         .await
                     {
                         Ok(_) => {
                             successful_buys.insert(buy_id, match_quantity);
+                            info!("Executed buy order for user {}", buy_id);
                         }
                         Err(e) => {
                             warn!(error = ?e, "Failed to execute order");

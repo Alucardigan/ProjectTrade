@@ -71,6 +71,7 @@ pub async fn place_order(
             request_body.quantity,
             request_body.order_type,
             request_body.price_buffer,
+            None,
         )
         .await?;
     tracing::info!("Order placed successfully");
