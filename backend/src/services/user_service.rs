@@ -75,6 +75,7 @@ impl UserService {
         system_user_id: Uuid,
         ticker_ids: Vec<String>,
     ) -> Result<Uuid, TradeError> {
+        info!("Deleting system user with user_id: {}", system_user_id);
         sqlx::query("DELETE FROM users WHERE user_id = $1")
             .bind(system_user_id)
             .execute(&self.user_db)
@@ -82,11 +83,16 @@ impl UserService {
             .map_err(|e| UserError::DatabaseError(e))?;
         self.upsert_user(system_user_id, "system", "system", "system@system.com")
             .await?;
+        info!("System user created with user_id: {}", system_user_id);
         self.account_management_service
             .add_user_balance(system_user_id, &BigDecimal::from(100000000))
             .await?;
-        info!("System user created with user_id: {}", system_user_id);
+        info!(
+            "System user balance created with user_id: {}",
+            system_user_id
+        );
         for ticker_id in ticker_ids {
+            info!("TICKER: {}", ticker_id);
             self.portfolio_management_service
                 .add_to_portfolio(
                     system_user_id,

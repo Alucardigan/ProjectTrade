@@ -100,11 +100,16 @@ impl AppState {
         let mut handles: Vec<tokio::task::JoinHandle<Result<(), TradeError>>> = Vec::new();
         let ticker_ids = vec!["AAPL".to_string(), "GOOGL".to_string(), "MSFT".to_string()];
         info!("Ticker ids: {:?}", ticker_ids);
-        self.user_service
+        if let Err(e) = self
+            .user_service
             .create_system_user(self.system_user_id, ticker_ids)
-            .await;
-        self.order_matchbook_service.initialise_orderbooks().await;
-        self.market_maker_service.initialise_market().await;
+            .await
+        {
+            tracing::error!("Failed to create system user: {:?}", e);
+        }
+
+        let _ = self.order_matchbook_service.initialise_orderbooks().await;
+        let _ = self.market_maker_service.initialise_market().await;
 
         handles.push(self.order_matchbook_service.create_worker_thread());
         handles.push(self.market_maker_service.spawn_worker_thread().await);

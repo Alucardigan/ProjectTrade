@@ -85,7 +85,6 @@ impl MarketMakerService {
             self.acceptable_tickers
         );
         for ticker in &self.acceptable_tickers {
-            info!("Generating market orders for ticker: {}", ticker);
             let market_orders = self.generate_market_orders(ticker.clone()).await?;
             let mut ticker_price_paths = self.ticker_price_paths.write().await;
             ticker_price_paths.insert(ticker.clone(), market_orders);
@@ -114,16 +113,12 @@ impl MarketMakerService {
 
     pub async fn spawn_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
         info!("Starting market maker thread");
-        let orderbook = self.order_matchbook_service.clone();
         let order_management_service = self.order_management_service.clone();
         let current_price_paths = self.ticker_price_paths.read().await.clone();
         let current_time = Utc::now();
         let current_time_index = current_time.time().hour() * 60 + current_time.time().minute();
         let acceptable_tickers = self.acceptable_tickers.clone();
         let user_id = self.market_maker_user_id;
-        info!("acceptable_tickers {:?}", acceptable_tickers);
-        info!("current_time_index {}", current_time_index);
-        info!("user_id {}", user_id);
 
         tokio::spawn(async move {
             for ticker in acceptable_tickers {
@@ -153,7 +148,6 @@ impl MarketMakerService {
                         Some(target_price.clone()),
                     )
                     .await?;
-                info!("Created market orders")
             }
             Ok(())
         })
