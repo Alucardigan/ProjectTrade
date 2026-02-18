@@ -104,11 +104,12 @@ impl OrderMatchbookService {
         info!("Starting order processor thread");
         let order_books = Arc::clone(&self.order_books);
         let trade_service = Arc::clone(&self.trade_service);
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
-            Self::ORDER_PROCESSOR_INTERVAL_SECS,
-        ));
+
         tokio::spawn(async move {
             loop {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
+                    Self::ORDER_PROCESSOR_INTERVAL_SECS,
+                ));
                 interval.tick().await;
                 let mut buy_ids: Vec<(Uuid, BigDecimal)> = Vec::new();
                 let mut sell_ids: Vec<(Uuid, BigDecimal)> = Vec::new();
