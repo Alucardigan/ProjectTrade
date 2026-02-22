@@ -10,7 +10,7 @@ use crate::models::errors::user_error::UserError;
 use crate::models::loan::LoanStatus;
 use crate::services::account_management_service::AccountManagementService;
 use crate::services::loan_service::LoanService;
-use crate::services::order_management_service::{self, OrderManagementService};
+use crate::services::order_management_service::OrderManagementService;
 use crate::services::portfolio_management_service::PortfolioManagementService;
 
 pub struct BankruptcyService {
