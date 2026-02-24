@@ -83,3 +83,5 @@ I found the user service implementation too long and therefore am refactoring it
 I need to add super users so market orders can be executed without any validation. Should super users ignore validation and execution or should they be infinite users?
 - Can't do synthetic orders because my code is service based and not that OOP
 - I can abstract away the validation logic to be seperate for market makers and users, but I cannot abstract trade execution logic atm. thoughts?
+
+Need a list of issues noticed with the market marker..
