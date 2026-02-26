@@ -85,3 +85,4 @@ I need to add super users so market orders can be executed without any validatio
 - I can abstract away the validation logic to be seperate for market makers and users, but I cannot abstract trade execution logic atm. thoughts?
 
 Need a list of issues noticed with the market marker..
+Apollo is a great cat!
