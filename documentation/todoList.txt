@@ -1,0 +1,117 @@
+📋 ProjectTrade — TODO List
+🔴 Critical / Core Bugs
+Market Maker 
+spawn_worker_thread
+ runs only once — The worker thread places buy/sell orders once and exits. It needs a loop with a scheduled interval (like the ORDER_PROCESSOR_INTERVAL_SECS pattern used in 
+OrderMatchbookService
+) to continuously place orders throughout the trading day.
+Market Maker 
+initialise_market
+ has 
+spawn_worker_thread
+ commented out — 
+spawn_worker_thread
+ is called from 
+AppState
+ directly, but 
+initialise_market
+ has the call commented out at line 92. The flow is inconsistent and could cause the market to be in an uninitialised state when the worker fires.
+place_order
+ for Market Maker bypasses fund/holding validation — The market maker calls 
+place_order
+ for Sell orders, which checks holdings. The system user likely has no holdings. The 
+validation_strategy.rs
+ traits (
+MarketOrderValidator
+, 
+UserOrderValidator
+) exist but are entirely unused — the validation logic is baked into OrderManagementService.place_order with no way to swap strategies. This needs to be wired up.
+execute_order
+ partial fill logic is broken — On a partial fill (line 100 in 
+trade_service.rs
+), it updates the quantity but doesn't update the order status back to Pending. On a full fill it updates status to Executed. However, when quantity is reduced, the order stays Pending in DB but the in-memory 
+OrderMatchbook
+ is updated separately — these can get out of sync on a restart.
+OrderMatchbookService
+ only matches 1 buy/sell pair per ticker per interval — 
+get_best_sale
+ returns at most one pair. A busy market can have hundreds of matchable orders. The matching loop should continue until no further matches exist for a given ticker.
+OMS cancel_order doesn't remove the order from the in-memory orderbook — Cancelling via the API updates the DB but the order stays live in 
+OrderMatchbookService
+'s BTreeMap and can still be matched.
+🟡 Architecture / Design Issues
+BankruptcyService
+ is never instantiated or wired into 
+AppState
+ — The service exists, has logic, but is never added to 
+AppState
+ and never called. It needs to be added to 
+AppState
+ and triggered (e.g., as a periodic background task checking all users with loans).
+ValidationStrategy
+ trait is dead code — 
+UserOrderValidator
+ and 
+MarketOrderValidator
+ are defined but never used anywhere. The intent from 
+DesignDecisions.txt
+ was to abstract validation logic — this needs to be plugged into OMS.
+TickerService
+ has no caching — Every call to 
+search_symbol
+ hits the DB or external API. A noted prior goal was to add an in-memory TTL cache to avoid redundant lookups — this is still missing.
+place_order
+ is not atomic — There's a // TODO: Add atomicity to this function comment at line 63. Fund reservation and order insertion should be wrapped in a DB transaction so a failure mid-way doesn't leave the user's funds reserved but no order created.
+TradeService.execute_order uses the order's stored price, not the matched price — For orders that partially fill or where the counterpart's price differs, the execution always uses order.price_per_share. In a real exchange, the matched price (e.g., the sell price) should be used.
+market_maker_service::brownian_motion ignores the spread — The market maker places both buy and sell at the same target_price. A real market maker should place the buy slightly below and the sell slightly above (bid/ask spread) to simulate liquidity.
+🟢 Missing Features / Incomplete Areas
+No 
+BankruptcyService
+ route/handler — Even if the service is wired up for background tasks, there's no admin endpoint to manually trigger a bankruptcy check or view at-risk accounts.
+TickerService.query_similar_symbol is a stub — The function body is empty ({}). The fuzzy symbol search feature was never implemented.
+Frontend missing a ticker.ts API file — The frontend has 
+account.ts
+, 
+loans.ts
+, 
+orderManagement.ts
+, and 
+portfolio.ts
+ but no API file for tickers. 
+BuyStockPage.tsx
+ likely does its own ad-hoc fetching.
+No error/loading states on frontend pages — Pages like 
+OrderHistoryPage.tsx
+ and 
+PortfolioPage.tsx
+ need proper loading spinners and error messages when API calls fail.
+No stock chart / price history displayed — The 
+Ticker
+ model returns a trend: Vec<BigDecimal> price history but it's not rendered anywhere on the frontend buy page.
+LandingPage.tsx
+ is nearly empty (546 bytes) — Placeholder content, needs a real implementation as the entry point for new users.
+🔵 Tests & Observability
+Unit/integration tests are sparse or missing — From conversation history, tests were started but coverage is low. Core services (
+TradeService
+, 
+OrderMatchbookService
+, 
+MarketMakerService
+) have no tests.
+No structured error logging for background workers — If the market maker or orderbook worker thread panics, the JoinHandle result is ignored in 
+start_background_processes
+. Task failures are silent — you should monitor and restart crashed workers.
+tracing::warn! on order execution failures swallows errors silently — Failing to execute an order in the worker loop just logs a warning. Consider persisting failed execution attempts or exposing a "failed orders" metric.
+🔧 Code Quality / Technical Debt
+#[allow(dead_code)] on multiple impl blocks — Several services suppress dead code warnings. These should be cleaned up once features are fully wired in.
+mock_db naming in 
+TickerService
+ — The field is called mock_db but it's the real production DB pool. Should be renamed to just db.
+Magic strings/numbers — "AAPL", "GOOGL", "MSFT" hardcoded in both AppState::new and 
+start_background_processes
+. Should be driven by config or environment variables.
+api_key passed as "mock" hardcoded in 
+main.rs
+ — The real API key exists in 
+vantageAPIKey
+ file but is never loaded. Should be read from environment variables properly.
