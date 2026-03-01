@@ -30,8 +30,11 @@ pub struct MarketMakerService {
 }
 
 impl MarketMakerService {
-    const TIME_STEP: u32 = 24;
+    const TIME_STEP: u32 = 1440;
     const STOCK_QUANTITY: u32 = 100;
+    const SPREAD_PERCENTAGE: f64 = 0.005;
+    const POSTING_FREQUENCY_SECS: u64 = 60;
+
     pub fn new(
         db: PgPool,
         ticker_service: Arc<TickerService>,
@@ -114,42 +117,80 @@ impl MarketMakerService {
     pub async fn spawn_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
         info!("Starting market maker thread");
         let order_management_service = self.order_management_service.clone();
-        let current_price_paths = self.ticker_price_paths.read().await.clone();
-        let current_time = Utc::now();
-        let current_time_index = current_time.time().hour() * 60 + current_time.time().minute();
         let acceptable_tickers = self.acceptable_tickers.clone();
         let user_id = self.market_maker_user_id;
 
+        // We clone the Arc to move it into the background thread so it can constantly read live states
+        let price_paths_ref = Arc::new(self.ticker_price_paths.read().await.clone());
+
         tokio::spawn(async move {
-            for ticker in acceptable_tickers {
-                let default_value = BigDecimal::from(120);
-                let target_price = current_price_paths
-                    .get(&ticker)
-                    .unwrap()
-                    .get(current_time_index as usize)
-                    .unwrap_or(&default_value); //TODO: something better than unwrap here pls
-                order_management_service
-                    .place_order(
-                        user_id,
-                        &ticker.clone(),
-                        BigDecimal::from(Self::STOCK_QUANTITY),
-                        OrderType::Buy,
-                        BigDecimal::zero(),
-                        Some(target_price.clone()),
-                    )
-                    .await?;
-                order_management_service
-                    .place_order(
-                        user_id,
-                        &ticker.clone(),
-                        BigDecimal::from(Self::STOCK_QUANTITY),
-                        OrderType::Sell,
-                        BigDecimal::zero(),
-                        Some(target_price.clone()),
-                    )
-                    .await?;
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
+                Self::POSTING_FREQUENCY_SECS,
+            ));
+            loop {
+                interval.tick().await;
+                let current_time = Utc::now();
+                let current_time_index =
+                    (current_time.time().hour() * 60 + current_time.time().minute()) as usize;
+
+                for ticker in &acceptable_tickers {
+                    let default_value = BigDecimal::from(120);
+
+                    let target_price = match price_paths_ref.get(ticker) {
+                        Some(paths) => paths.get(current_time_index).unwrap_or(&default_value),
+                        None => {
+                            tracing::warn!("No price path found for ticker {}", ticker);
+                            &default_value
+                        }
+                    };
+
+                    let target_price_f64 = target_price.to_f64().unwrap_or(120.0);
+
+                    let bid_price = target_price_f64 * (1.0 - Self::SPREAD_PERCENTAGE);
+                    let ask_price = target_price_f64 * (1.0 + Self::SPREAD_PERCENTAGE);
+
+                    let bid_decimal =
+                        BigDecimal::from_f64(bid_price).unwrap_or(target_price.clone());
+                    let ask_decimal =
+                        BigDecimal::from_f64(ask_price).unwrap_or(target_price.clone());
+
+                    if let Err(e) = order_management_service
+                        .place_order(
+                            user_id,
+                            &ticker.clone(),
+                            BigDecimal::from(Self::STOCK_QUANTITY),
+                            OrderType::Buy,
+                            BigDecimal::zero(),
+                            Some(bid_decimal),
+                        )
+                        .await
+                    {
+                        tracing::error!(
+                            "Market Maker failed to place Buy order for {}: {:?}",
+                            ticker,
+                            e
+                        );
+                    }
+
+                    if let Err(e) = order_management_service
+                        .place_order(
+                            user_id,
+                            &ticker.clone(),
+                            BigDecimal::from(Self::STOCK_QUANTITY),
+                            OrderType::Sell,
+                            BigDecimal::zero(),
+                            Some(ask_decimal),
+                        )
+                        .await
+                    {
+                        tracing::error!(
+                            "Market Maker failed to place Sell order for {}: {:?}",
+                            ticker,
+                            e
+                        );
+                    }
+                }
             }
-            Ok(())
         })
     }
 
