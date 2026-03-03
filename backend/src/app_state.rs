@@ -68,7 +68,6 @@ impl AppState {
         let market_maker_service = Arc::new(market_maker_service::MarketMakerService::new(
             db.clone(),
             ticker_service.clone(),
-            order_matchbook_service.clone(),
             order_management_service.clone(),
             vec!["AAPL".to_string(), "GOOGL".to_string(), "MSFT".to_string()],
             system_user_id,

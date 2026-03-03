@@ -50,7 +50,7 @@ pub struct OrderMatchbookService {
 }
 
 impl OrderMatchbookService {
-    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 10;
+    const ORDER_PROCESSOR_INTERVAL_SECS: u64 = 100;
     pub fn new(
         db: PgPool,
         trade_service: Arc<TradeService>,
@@ -106,10 +106,10 @@ impl OrderMatchbookService {
         let trade_service = Arc::clone(&self.trade_service);
 
         tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
+                Self::ORDER_PROCESSOR_INTERVAL_SECS,
+            ));
             loop {
-                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
-                    Self::ORDER_PROCESSOR_INTERVAL_SECS,
-                ));
                 interval.tick().await;
                 let mut buy_ids: Vec<(Uuid, BigDecimal)> = Vec::new();
                 let mut sell_ids: Vec<(Uuid, BigDecimal)> = Vec::new();

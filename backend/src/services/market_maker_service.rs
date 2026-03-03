@@ -8,21 +8,14 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    models::{
-        errors::trade_error::TradeError,
-        order::{Order, OrderStatus, OrderType},
-    },
-    services::{
-        order_management_service::OrderManagementService,
-        order_matchbook_service::OrderMatchbookService, ticker_service::TickerService,
-    },
+    models::{errors::trade_error::TradeError, order::OrderType},
+    services::{order_management_service::OrderManagementService, ticker_service::TickerService},
 };
 use std::{collections::HashMap, sync::Arc};
 
 pub struct MarketMakerService {
     db: PgPool,
     ticker_service: Arc<TickerService>,
-    order_matchbook_service: Arc<OrderMatchbookService>,
     order_management_service: Arc<OrderManagementService>,
     acceptable_tickers: Vec<String>,
     ticker_price_paths: RwLock<HashMap<String, Vec<BigDecimal>>>,
@@ -38,7 +31,6 @@ impl MarketMakerService {
     pub fn new(
         db: PgPool,
         ticker_service: Arc<TickerService>,
-        order_matchbook_service: Arc<OrderMatchbookService>,
         order_management_service: Arc<OrderManagementService>,
         acceptable_tickers: Vec<String>,
         user_id: Uuid,
@@ -46,7 +38,6 @@ impl MarketMakerService {
         Self {
             db,
             ticker_service,
-            order_matchbook_service,
             order_management_service,
             acceptable_tickers,
             ticker_price_paths: RwLock::new(HashMap::new()),
