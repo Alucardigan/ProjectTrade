@@ -41,69 +41,7 @@ impl TickerService {
             }
         }
 
-        let ticker = if self.api_client.get_api_key() == "mock" {
-            let prices = sqlx::query(
-                "SELECT close FROM stock_prices WHERE symbol = $1 ORDER BY time DESC LIMIT 5",
-            )
-            .bind(symbol)
-            .fetch_all(&self.mock_db)
-            .await
-            .map(|rows| {
-                rows.iter()
-                    .map(|row| row.try_get("close").unwrap_or_default())
-                    .collect::<Vec<BigDecimal>>()
-            })
-            .unwrap_or_else(|_| {
-                vec![
-                    BigDecimal::from(120),
-                    BigDecimal::from(121),
-                    BigDecimal::from(122),
-                    BigDecimal::from(123),
-                    BigDecimal::from(124),
-                ]
-            });
-            let zero = BigDecimal::zero();
-            let price = prices.first().unwrap_or(&zero).clone();
-            Ticker {
-                symbol: symbol.into(),
-                price_per_share: price,
-                trend: prices,
-            }
-        } else {
-            let stock_time_prices = match self
-                .api_client
-                .stock_time(alpha_vantage::stock_time::StockFunction::Daily, symbol)
-                .output_size(alpha_vantage::api::OutputSize::Compact)
-                .json()
-                .await
-            {
-                Ok(stock_time_response) => {
-                    let stock_time = stock_time_response.data();
-                    stock_time
-                        .iter()
-                        .map(|time_data| BigDecimal::from_f64(time_data.close()).unwrap())
-                        .collect()
-                }
-                Err(_) => {
-                    tracing::warn!("Api limit reached or error fetching data for {}", symbol);
-                    vec![
-                        BigDecimal::from(120),
-                        BigDecimal::from(121),
-                        BigDecimal::from(122),
-                        BigDecimal::from(123),
-                        BigDecimal::from(124),
-                    ]
-                }
-            };
-            Ticker {
-                symbol: symbol.into(),
-                price_per_share: stock_time_prices
-                    .first()
-                    .unwrap_or(&BigDecimal::zero())
-                    .clone(),
-                trend: stock_time_prices,
-            }
-        };
+        let ticker = self.get_or_fetch_price_for_today(symbol).await;
 
         // Update cache
         {
@@ -111,6 +49,112 @@ impl TickerService {
             cache.insert(symbol.to_string(), (ticker.clone(), Instant::now()));
         }
         ticker
+    }
+
+    pub async fn fetch_from_api(&self, symbol: &str) -> Ticker {
+        if self.api_client.get_api_key() == "mock" {
+            return Ticker {
+                symbol: symbol.into(),
+                price_per_share: BigDecimal::from(120),
+                trend: vec![
+                    BigDecimal::from(120),
+                    BigDecimal::from(121),
+                    BigDecimal::from(122),
+                    BigDecimal::from(123),
+                    BigDecimal::from(124),
+                ],
+            };
+        }
+
+        let stock_time_prices = match self
+            .api_client
+            .stock_time(alpha_vantage::stock_time::StockFunction::Daily, symbol)
+            .output_size(alpha_vantage::api::OutputSize::Compact)
+            .json()
+            .await
+        {
+            Ok(stock_time_response) => {
+                let stock_time = stock_time_response.data();
+                stock_time
+                    .iter()
+                    .map(|time_data| BigDecimal::from_f64(time_data.close()).unwrap())
+                    .collect()
+            }
+            Err(_) => {
+                tracing::warn!("Api limit reached or error fetching data for {}", symbol);
+                vec![
+                    BigDecimal::from(120),
+                    BigDecimal::from(121),
+                    BigDecimal::from(122),
+                    BigDecimal::from(123),
+                    BigDecimal::from(124),
+                ]
+            }
+        };
+        Ticker {
+            symbol: symbol.into(),
+            price_per_share: stock_time_prices
+                .first()
+                .unwrap_or(&BigDecimal::zero())
+                .clone(),
+            trend: stock_time_prices,
+        }
+    }
+
+    pub async fn fetch_from_db(&self, symbol: &str) -> Ticker {
+        let prices = sqlx::query(
+            "SELECT close FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 5",
+        )
+        .bind(symbol)
+        .fetch_all(&self.mock_db)
+        .await
+        .map(|rows| {
+            rows.iter()
+                .map(|row| row.try_get("close").unwrap_or_default())
+                .collect::<Vec<BigDecimal>>()
+        })
+        .unwrap_or_else(|_| {
+            vec![
+                BigDecimal::from(120),
+                BigDecimal::from(121),
+                BigDecimal::from(122),
+                BigDecimal::from(123),
+                BigDecimal::from(124),
+            ]
+        });
+        let zero = BigDecimal::zero();
+        let price = prices.first().unwrap_or(&zero).clone();
+        Ticker {
+            symbol: symbol.into(),
+            price_per_share: price,
+            trend: prices,
+        }
+    }
+
+    pub async fn get_or_fetch_price_for_today(&self, symbol: &str) -> Ticker {
+        let has_today_price =
+            sqlx::query("SELECT 1 FROM stock_prices WHERE ticker = $1 AND date >= CURRENT_DATE")
+                .bind(symbol)
+                .fetch_optional(&self.mock_db)
+                .await
+                .unwrap_or(None)
+                .is_some();
+
+        if has_today_price {
+            self.fetch_from_db(symbol).await
+        } else {
+            let ticker = self.fetch_from_api(symbol).await;
+
+            let _ = sqlx::query(
+                "INSERT INTO stock_prices (ticker, date, close) VALUES ($1, NOW(), $2)",
+            )
+            .bind(symbol)
+            .bind(&ticker.price_per_share)
+            .execute(&self.mock_db)
+            .await;
+
+            ticker
+        }
     }
 
     #[tracing::instrument(skip(self))]
