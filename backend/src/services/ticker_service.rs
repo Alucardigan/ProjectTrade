@@ -1,5 +1,6 @@
 use alpha_vantage::ApiClient;
 use bigdecimal::BigDecimal;
+use chrono::Utc;
 use num_traits::FromPrimitive;
 use num_traits::Zero;
 use sqlx::PgPool;
@@ -52,21 +53,21 @@ impl TickerService {
     }
 
     pub async fn fetch_from_api(&self, symbol: &str) -> Ticker {
+        let mut ticker = Ticker {
+            symbol: symbol.into(),
+            date: Utc::now(),
+            close: BigDecimal::from(120), // default
+            volume: None,
+            open: None,
+            high: None,
+            low: None,
+        };
+
         if self.api_client.get_api_key() == "mock" {
-            return Ticker {
-                symbol: symbol.into(),
-                price_per_share: BigDecimal::from(120),
-                trend: vec![
-                    BigDecimal::from(120),
-                    BigDecimal::from(121),
-                    BigDecimal::from(122),
-                    BigDecimal::from(123),
-                    BigDecimal::from(124),
-                ],
-            };
+            return ticker;
         }
 
-        let stock_time_prices = match self
+        match self
             .api_client
             .stock_time(alpha_vantage::stock_time::StockFunction::Daily, symbol)
             .output_size(alpha_vantage::api::OutputSize::Compact)
@@ -75,59 +76,49 @@ impl TickerService {
         {
             Ok(stock_time_response) => {
                 let stock_time = stock_time_response.data();
-                stock_time
-                    .iter()
-                    .map(|time_data| BigDecimal::from_f64(time_data.close()).unwrap())
-                    .collect()
+                if let Some(latest) = stock_time.first() {
+                    ticker.close =
+                        BigDecimal::from_f64(latest.close()).unwrap_or(BigDecimal::from(120));
+                }
             }
             Err(_) => {
                 tracing::warn!("Api limit reached or error fetching data for {}", symbol);
-                vec![
-                    BigDecimal::from(120),
-                    BigDecimal::from(121),
-                    BigDecimal::from(122),
-                    BigDecimal::from(123),
-                    BigDecimal::from(124),
-                ]
             }
         };
-        Ticker {
-            symbol: symbol.into(),
-            price_per_share: stock_time_prices
-                .first()
-                .unwrap_or(&BigDecimal::zero())
-                .clone(),
-            trend: stock_time_prices,
-        }
+
+        ticker
     }
 
     pub async fn fetch_from_db(&self, symbol: &str) -> Ticker {
-        let prices = sqlx::query(
-            "SELECT close FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 5",
-        )
-        .bind(symbol)
-        .fetch_all(&self.mock_db)
-        .await
-        .map(|rows| {
-            rows.iter()
-                .map(|row| row.try_get("close").unwrap_or_default())
-                .collect::<Vec<BigDecimal>>()
-        })
-        .unwrap_or_else(|_| {
-            vec![
-                BigDecimal::from(120),
-                BigDecimal::from(121),
-                BigDecimal::from(122),
-                BigDecimal::from(123),
-                BigDecimal::from(124),
-            ]
-        });
-        let zero = BigDecimal::zero();
-        let price = prices.first().unwrap_or(&zero).clone();
-        Ticker {
-            symbol: symbol.into(),
-            price_per_share: price,
-            trend: prices,
+        let row_opt =
+            sqlx::query("SELECT * FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1")
+                .bind(symbol)
+                .fetch_optional(&self.mock_db)
+                .await
+                .unwrap_or(None);
+
+        if let Some(row) = row_opt {
+            Ticker {
+                symbol: symbol.into(),
+                date: row.try_get("date").unwrap_or_else(|_| Utc::now()),
+                close: row
+                    .try_get("close")
+                    .unwrap_or_else(|_| BigDecimal::from(120)),
+                volume: row.try_get("volume").ok(),
+                open: row.try_get("open").ok(),
+                high: row.try_get("high").ok(),
+                low: row.try_get("low").ok(),
+            }
+        } else {
+            Ticker {
+                symbol: symbol.into(),
+                date: Utc::now(),
+                close: BigDecimal::from(120),
+                volume: None,
+                open: None,
+                high: None,
+                low: None,
+            }
         }
     }
 
@@ -146,10 +137,14 @@ impl TickerService {
             let ticker = self.fetch_from_api(symbol).await;
 
             let _ = sqlx::query(
-                "INSERT INTO stock_prices (ticker, date, close) VALUES ($1, NOW(), $2)",
+                "INSERT INTO stock_prices (ticker, date, close, volume, open, high, low) VALUES ($1, NOW(), $2, $3, $4, $5, $6)",
             )
             .bind(symbol)
-            .bind(&ticker.price_per_share)
+            .bind(&ticker.close)
+            .bind(&ticker.volume)
+            .bind(&ticker.open)
+            .bind(&ticker.high)
+            .bind(&ticker.low)
             .execute(&self.mock_db)
             .await;
 

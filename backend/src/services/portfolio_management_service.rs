@@ -38,7 +38,7 @@ impl PortfolioManagementService {
             let ticker = self.ticker_service.search_symbol(rec.get("ticker")).await;
             let quantity = rec.get("quantity");
             let total_money_spent: BigDecimal = rec.get("total_money_spent");
-            let calculated_total_profit = (&quantity * ticker.price_per_share) - &total_money_spent;
+            let calculated_total_profit = (&quantity * ticker.close) - &total_money_spent;
             let portfolio_item = PortfolioTicker {
                 user_id: rec.get("user_id"),
                 ticker: rec.get("ticker"),

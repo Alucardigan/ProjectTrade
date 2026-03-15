@@ -61,11 +61,7 @@ impl OrderManagementService {
             return Err(TradeError::InvalidAmount);
         }
         //price calculation
-        let price_per_share = self
-            .trade_service
-            .search_symbol(ticker)
-            .await
-            .price_per_share;
+        let price_per_share = self.trade_service.search_symbol(ticker).await.close;
         let total_purchase_price = &price_per_share * &quantity;
         match order_type {
             OrderType::Buy => {

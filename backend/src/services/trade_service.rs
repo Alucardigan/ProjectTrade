@@ -66,11 +66,7 @@ impl TradeService {
         if order.quantity < BigDecimal::from(0) {
             return Err(TradeError::InvalidAmount);
         }
-        let price = self
-            .ticker_service
-            .search_symbol(&order.ticker)
-            .await
-            .price_per_share;
+        let price = self.ticker_service.search_symbol(&order.ticker).await.close;
         let total_purchase_price = &price * &order.quantity;
         match order.order_type {
             OrderType::Buy => {
