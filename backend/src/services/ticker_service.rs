@@ -151,15 +151,4 @@ impl TickerService {
             ticker
         }
     }
-
-    #[tracing::instrument(skip(self))]
-    pub async fn search_multiple_symbols(&self, symbols: Vec<&str>) {
-        let mut tickers: Vec<Ticker> = vec![];
-        for symbol in symbols {
-            let ticker = self.search_symbol(symbol).await;
-            tickers.push(ticker);
-        }
-    }
-    //search function to find nearest matching symbol
-    pub async fn query_similar_symbol(&self, _symbol: &str) {}
 }
