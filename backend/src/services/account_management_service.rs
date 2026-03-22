@@ -3,7 +3,6 @@ use crate::models::errors::user_error::UserError;
 use crate::models::transaction::Transaction;
 use bigdecimal::BigDecimal;
 use num_traits::Zero;
-use sqlx::postgres::types::PgMoney;
 use sqlx::PgPool;
 use sqlx::Row;
 use uuid::Uuid;

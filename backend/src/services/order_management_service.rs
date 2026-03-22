@@ -7,6 +7,7 @@ use crate::{
     },
     services::{
         account_management_service::AccountManagementService,
+        order_matchbook_service::OrderMatchbookService,
         portfolio_management_service::PortfolioManagementService, ticker_service::TickerService,
         user_service::UserService,
     },
@@ -14,6 +15,7 @@ use crate::{
 use sqlx::types::BigDecimal;
 use sqlx::PgPool;
 use sqlx::Row;
+use tracing::info;
 use uuid::Uuid;
 
 #[allow(dead_code)]
@@ -24,6 +26,7 @@ pub struct OrderManagementService {
     pub trade_service: Arc<TickerService>,
     pub account_management_service: Arc<AccountManagementService>,
     pub portfolio_management_service: Arc<PortfolioManagementService>,
+    pub order_matchbook_service: Arc<OrderMatchbookService>,
 }
 
 #[allow(dead_code)]
@@ -34,6 +37,7 @@ impl OrderManagementService {
         trade_service: Arc<TickerService>,
         account_management_service: Arc<AccountManagementService>,
         portfolio_management_service: Arc<PortfolioManagementService>,
+        order_matchbook_service: Arc<OrderMatchbookService>,
     ) -> Self {
         Self {
             db,
@@ -41,6 +45,7 @@ impl OrderManagementService {
             trade_service,
             account_management_service,
             portfolio_management_service,
+            order_matchbook_service,
         }
     }
 
@@ -53,19 +58,25 @@ impl OrderManagementService {
         quantity: BigDecimal,
         order_type: OrderType,
         _price_buffer: BigDecimal,
+        price_per_share: Option<BigDecimal>,
     ) -> Result<Order, TradeError> {
         // TODO : Add atomicity to this function
+        info!("Placing order for user {}", user_id);
         let order_id = Uuid::new_v4();
         let status = OrderStatus::Pending;
         if quantity < BigDecimal::from(0) {
             return Err(TradeError::InvalidAmount);
         }
         //price calculation
-        let price_per_share = self
-            .trade_service
-            .search_symbol(ticker)
-            .await
-            .price_per_share;
+        let price_per_share = match price_per_share {
+            Some(price) => price,
+            None => {
+                self.trade_service
+                    .search_symbol(ticker)
+                    .await?
+                    .price_per_share
+            }
+        };
         let total_purchase_price = &price_per_share * &quantity;
         match order_type {
             OrderType::Buy => {
@@ -85,23 +96,9 @@ impl OrderManagementService {
                 }
             }
         }
+        info!("Attempting to add order to orderbook");
         //Placing order
-        sqlx::query(
-            "INSERT INTO orders 
-        (order_id, user_id, ticker, quantity, price_per_share, order_type, status) 
-        VALUES ($1, $2, $3, $4, $5, $6::order_type, $7::order_status)",
-        )
-        .bind(order_id)
-        .bind(user_id)
-        .bind(ticker)
-        .bind(quantity.clone())
-        .bind(&price_per_share)
-        .bind(&order_type)
-        .bind(&status)
-        .execute(&self.db)
-        .await
-        .map_err(|e| TradeError::DatabaseError(e))?;
-        Ok(Order {
+        let created_order = Order {
             order_id,
             user_id,
             ticker: ticker.to_string(),
@@ -109,7 +106,27 @@ impl OrderManagementService {
             price_per_share,
             order_type,
             status,
-        })
+        };
+        self.order_matchbook_service
+            .add_order(created_order.clone())
+            .await?;
+        info!("Order added to orderbook successfully");
+        let _rec = sqlx::query(
+            "INSERT INTO orders 
+        (order_id, user_id, ticker, quantity, price_per_share, order_type, status) 
+        VALUES ($1, $2, $3, $4, $5, $6::order_type, $7::order_status)",
+        )
+        .bind(&created_order.order_id)
+        .bind(&created_order.user_id)
+        .bind(&created_order.ticker)
+        .bind(&created_order.quantity)
+        .bind(&created_order.price_per_share)
+        .bind(&created_order.order_type)
+        .bind(&created_order.status)
+        .execute(&self.db)
+        .await
+        .map_err(|e| TradeError::DatabaseError(e))?;
+        Ok(created_order)
     }
 
     #[tracing::instrument(skip(self))]

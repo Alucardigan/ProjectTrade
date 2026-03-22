@@ -22,6 +22,8 @@ pub enum TradeError {
     TickerError(#[from] TickerError),
     #[error("Order book not found")]
     OrderBookNotFound,
+    #[error("No match found for order")]
+    NoMatchForOrder,
 }
 
 impl From<TradeError> for ApiError {
@@ -37,6 +39,9 @@ impl From<TradeError> for ApiError {
             TradeError::UserError(e) => e.into(),
             TradeError::TickerError(e) => e.into(),
             TradeError::OrderBookNotFound => ApiError::NotFound("Order book not found".to_string()),
+            TradeError::NoMatchForOrder => {
+                ApiError::NotFound("No match found for order".to_string())
+            }
         }
     }
 }
