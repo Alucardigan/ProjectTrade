@@ -14,7 +14,6 @@ use crate::services::order_management_service::OrderManagementService;
 use crate::services::portfolio_management_service::PortfolioManagementService;
 
 pub struct BankruptcyService {
-    db: PgPool,
     loan_service: Arc<LoanService>,
     account_management_service: Arc<AccountManagementService>,
     portfolio_management_service: Arc<PortfolioManagementService>,
@@ -31,7 +30,6 @@ impl BankruptcyService {
         order_management_service: Arc<OrderManagementService>,
     ) -> BankruptcyService {
         BankruptcyService {
-            db,
             loan_service,
             account_management_service,
             portfolio_management_service,
