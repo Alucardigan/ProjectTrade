@@ -2,17 +2,17 @@ use std::sync::Arc;
 
 use crate::authentication::basic_client::Auth0LoginResponse;
 use crate::authentication::basic_client::AuthorizationClient;
+use crate::models::errors::trade_error::TradeError;
 use crate::models::errors::user_error::UserError;
 use crate::services::account_management_service::AccountManagementService;
 use crate::services::portfolio_management_service::PortfolioManagementService;
-
-use oauth2::basic::BasicTokenType;
-use oauth2::EmptyExtraTokenFields;
-use oauth2::StandardTokenResponse;
+use bigdecimal::BigDecimal;
+use num_traits::Zero;
 use oauth2::TokenResponse;
-use oauth2::{AuthorizationCode, CsrfToken, PkceCodeVerifier};
+use oauth2::{CsrfToken, PkceCodeVerifier};
 use sqlx::PgPool;
 use sqlx::Row;
+use tracing::info;
 use uuid::Uuid;
 //current implementation assumes no Errors
 #[allow(dead_code)]
@@ -70,6 +70,32 @@ impl UserService {
         Ok(inserted_user_id)
     }
 
+    pub async fn create_system_user(
+        &self,
+        system_user_id: Uuid,
+        ticker_ids: Vec<String>,
+    ) -> Result<Uuid, TradeError> {
+        info!("Upserting system user with user_id: {}", system_user_id);
+        self.upsert_user(system_user_id, "system", "system", "system@system.com")
+            .await?;
+        info!("System user upserted with user_id: {}", system_user_id);
+        self.account_management_service
+            .add_user_balance(system_user_id, &BigDecimal::from(100000000))
+            .await?;
+        info!("System user balance added for user_id: {}", system_user_id);
+        for ticker_id in ticker_ids {
+            info!("TICKER: {}", ticker_id);
+            self.portfolio_management_service
+                .add_to_portfolio(
+                    system_user_id,
+                    &ticker_id,
+                    &BigDecimal::from(100000000),
+                    &BigDecimal::zero(),
+                )
+                .await?;
+        }
+        Ok(system_user_id)
+    }
     //should this function exist?
     #[tracing::instrument(skip(self))]
     pub async fn get_user_uuid(&self, username: &str) -> Result<Uuid, UserError> {

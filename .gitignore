@@ -3,3 +3,4 @@
 vantageAPIKey
 /backend/dummyData
 /backend/.sqlx
+/.vscode/*
