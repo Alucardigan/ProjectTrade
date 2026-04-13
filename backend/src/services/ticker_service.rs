@@ -1,9 +1,14 @@
 use alpha_vantage::ApiClient;
 use bigdecimal::BigDecimal;
+use chrono::Utc;
 use num_traits::FromPrimitive;
 use num_traits::Zero;
 use sqlx::PgPool;
 use sqlx::Row;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 use tracing::info;
 
 use crate::models::errors::trade_error::TradeError;
@@ -11,18 +16,18 @@ use crate::models::stock_ticker::Ticker;
 
 #[derive(Clone)]
 pub struct TickerService {
-    pub api_client: std::sync::Arc<ApiClient>,
+    pub api_client: Arc<ApiClient>,
     pub mock_db: PgPool,
+    pub cache: Arc<RwLock<HashMap<String, (Ticker, Instant)>>>,
 }
+
 #[allow(dead_code)]
 impl TickerService {
     pub fn new(api_key: &str, mock_db: PgPool) -> Self {
         Self {
-            api_client: std::sync::Arc::new(alpha_vantage::set_api(
-                api_key,
-                reqwest::Client::new(),
-            )),
-            mock_db: mock_db,
+            api_client: Arc::new(alpha_vantage::set_api(api_key, reqwest::Client::new())),
+            mock_db,
+            cache: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -59,7 +64,8 @@ impl TickerService {
                 trend: prices,
             });
         }
-        let stock_time_prices = match self
+
+        match self
             .api_client
             .stock_time(alpha_vantage::stock_time::StockFunction::Daily, symbol)
             .output_size(alpha_vantage::api::OutputSize::Compact)
@@ -68,22 +74,13 @@ impl TickerService {
         {
             Ok(stock_time_response) => {
                 let stock_time = stock_time_response.data();
-                let prices: Vec<BigDecimal> = stock_time
-                    .iter()
-                    .map(|time_data| BigDecimal::from_f64(time_data.close()).unwrap())
-                    .collect();
-                prices
+                if let Some(latest) = stock_time.first() {
+                    ticker.close =
+                        BigDecimal::from_f64(latest.close()).unwrap_or(BigDecimal::from(120));
+                }
             }
             Err(_) => {
-                println!("Api limit reached");
-                let prices: Vec<BigDecimal> = vec![
-                    BigDecimal::from(120),
-                    BigDecimal::from(121),
-                    BigDecimal::from(122),
-                    BigDecimal::from(123),
-                    BigDecimal::from(124),
-                ];
-                prices
+                tracing::warn!("Api limit reached or error fetching data for {}", symbol);
             }
         };
         info!(
@@ -109,6 +106,4 @@ impl TickerService {
             })
             .unwrap_or_default()
     }
-    //search function to find nearest matching symbol
-    pub async fn query_similar_symbol(&self, _symbol: &str) {}
 }
