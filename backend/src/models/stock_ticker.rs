@@ -4,7 +4,7 @@ use serde::Serialize;
 
 #[derive(Serialize, Clone)]
 pub struct Ticker {
-    pub symbol: String,
+    pub ticker: String,
     pub date: DateTime<Utc>,
     pub close: BigDecimal,
     pub volume: Option<i64>,

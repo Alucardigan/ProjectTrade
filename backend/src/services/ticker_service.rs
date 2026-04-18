@@ -6,11 +6,14 @@ use num_traits::Zero;
 use sqlx::PgPool;
 use sqlx::Row;
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
+use tracing::debug;
 use tracing::info;
 
+use crate::models::errors::ticker_error::TickerError;
 use crate::models::errors::trade_error::TradeError;
 use crate::models::stock_ticker::Ticker;
 
@@ -30,68 +33,52 @@ impl TickerService {
             cache: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-
-    #[tracing::instrument(skip(self))]
-    pub async fn search_symbol(&self, symbol: &str) -> Result<Ticker, TradeError> {
-        info!("Searching for price of ticker: {}", symbol);
-        if self.api_client.get_api_key() == "mock" {
-            let prices = sqlx::query(
-                "SELECT close FROM stock_prices WHERE symbol = $1 ORDER BY time DESC LIMIT 5",
-            )
-            .bind(symbol)
-            .fetch_all(&self.mock_db)
+    pub async fn fetch_ticker_from_db(&self, ticker: &str) -> Result<Ticker, TradeError> {
+        debug!("Fetching ticker from DB");
+        let stock = sqlx::query("SELECT * FROM stock_prices WHERE symbol = $1 ORDER BY time DESC")
+            .bind(ticker)
+            .fetch_one(&self.mock_db)
             .await
-            .map(|rows| {
-                rows.iter()
-                    .map(|row| row.try_get("close").unwrap_or_default())
-                    .collect::<Vec<BigDecimal>>()
+            .and_then(|rec| {
+                Ok(Ticker {
+                    ticker: rec.try_get("ticker")?,
+                    date: rec.try_get("date")?,
+                    close: rec.try_get("close")?,
+                    volume: rec.try_get("volume")?,
+                    open: rec.try_get("open")?,
+                    high: rec.try_get("high")?,
+                    low: rec.try_get("low")?,
+                })
             })
-            .unwrap_or_else(|_| {
-                vec![
-                    BigDecimal::from(120),
-                    BigDecimal::from(121),
-                    BigDecimal::from(122),
-                    BigDecimal::from(123),
-                    BigDecimal::from(124),
-                ]
-            });
-            let zero = &BigDecimal::zero();
-            let price = prices.first().unwrap_or(zero);
-            info!("Current price {} for ticker {}", price, symbol);
-            return Ok(Ticker {
-                symbol: symbol.into(),
-                price_per_share: price.clone(),
-                trend: prices,
-            });
-        }
+            .map_err(|e| TradeError::DatabaseError(e));
+        return stock;
+    }
 
-        match self
+    pub async fn fetch_ticker_from_api(&self, ticker: &str) -> Result<Ticker, TradeError> {
+        debug!("Fetching ticker from API");
+        let api_response = self
             .api_client
-            .stock_time(alpha_vantage::stock_time::StockFunction::Daily, symbol)
+            .stock_time(alpha_vantage::stock_time::StockFunction::Daily, ticker)
             .output_size(alpha_vantage::api::OutputSize::Compact)
             .json()
             .await
-        {
-            Ok(stock_time_response) => {
-                let stock_time = stock_time_response.data();
-                if let Some(latest) = stock_time.first() {
-                    ticker.close =
-                        BigDecimal::from_f64(latest.close()).unwrap_or(BigDecimal::from(120));
-                }
-            }
-            Err(_) => {
-                tracing::warn!("Api limit reached or error fetching data for {}", symbol);
-            }
-        };
-        info!(
-            "Current price {} for ticker {}",
-            stock_time_prices[0], symbol
-        );
-        return Ok(Ticker {
-            symbol: symbol.into(),
-            price_per_share: stock_time_prices[0].clone(),
-            trend: stock_time_prices,
-        });
+            .map_err(|e| TradeError::TickerError(TickerError::AlphaVantageError(e)))?;
+        let api_data = api_response.data();
+        if let Some(latest) = api_data.first() {
+            let ticker = Ticker {
+                ticker: ticker.to_string(),
+                date: chrono::DateTime::from_str(latest.time()).unwrap_or(Utc::now()),
+                close: BigDecimal::from_f64(latest.close()).unwrap_or(BigDecimal::from(120)),
+                volume: latest.volume().try_into().ok(),
+                open: Some(BigDecimal::from_f64(latest.open()).unwrap_or(BigDecimal::from(120))),
+                high: Some(BigDecimal::from_f64(latest.high()).unwrap_or(BigDecimal::from(120))),
+                low: Some(BigDecimal::from_f64(latest.low()).unwrap_or(BigDecimal::from(120))),
+            };
+            return Ok(ticker);
+        }
+        Err(TradeError::TickerError(TickerError::InvalidSymbol(
+            ticker.to_string(),
+        )))
     }
 
     pub async fn get_active_stocks(&self) -> Vec<String> {

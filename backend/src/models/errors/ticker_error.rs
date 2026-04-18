@@ -9,6 +9,8 @@ pub enum TickerError {
     RateLimitExceeded,
     #[error("API error: {0}")]
     ApiError(String),
+    #[error("alpha_vantage error: {0}")]
+    AlphaVantageError(#[from] alpha_vantage::error::Error),
 }
 
 impl From<TickerError> for ApiError {
@@ -19,6 +21,9 @@ impl From<TickerError> for ApiError {
                 ApiError::InternalServerError("Rate limit exceeded".to_string())
             }
             TickerError::ApiError(s) => ApiError::InternalServerError(format!("API error: {}", s)),
+            TickerError::AlphaVantageError(s) => {
+                ApiError::InternalServerError(format!("API error: {}", s.to_string()))
+            }
         }
     }
 }

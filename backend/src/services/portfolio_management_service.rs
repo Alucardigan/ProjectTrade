@@ -35,7 +35,10 @@ impl PortfolioManagementService {
             .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         let mut user_portfolio = Vec::new();
         for rec in database_portfolio {
-            let ticker = self.ticker_service.search_symbol(rec.get("ticker")).await?;
+            let ticker = self
+                .ticker_service
+                .fetch_ticker_from_db(rec.get("ticker"))
+                .await?;
             let quantity = rec.get("quantity");
             let total_money_spent: BigDecimal = rec.get("total_money_spent");
             let calculated_total_profit = (&quantity * ticker.close) - &total_money_spent;

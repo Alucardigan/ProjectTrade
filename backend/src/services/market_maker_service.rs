@@ -90,15 +90,15 @@ impl MarketMakerService {
         &self,
         ticker: String,
     ) -> Result<Vec<BigDecimal>, TradeError> {
-        let market_price = self.ticker_service.search_symbol(&ticker).await?;
+        let market_price = self.ticker_service.fetch_ticker_from_db(&ticker).await?;
         let current_price_opt = self.get_current_price(&ticker).await?;
         let start_price = match current_price_opt {
             Some(price) => price,
-            None => market_price.price_per_share.clone(),
+            None => market_price.close.clone(),
         };
 
         let price_path = Self::brownian_motion(
-            ToPrimitive::to_f64(&market_price.price_per_share).unwrap_or(0.0),
+            ToPrimitive::to_f64(&market_price.close).unwrap_or(0.0),
             ToPrimitive::to_f64(&start_price).unwrap_or(0.0),
             Self::TIME_STEP,
         );
