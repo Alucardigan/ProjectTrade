@@ -35,9 +35,9 @@ impl TickerService {
     }
     pub async fn fetch_ticker_from_db(&self, ticker: &str) -> Result<Ticker, TradeError> {
         debug!("Fetching ticker from DB");
-        let stock = sqlx::query("SELECT * FROM stock_prices WHERE symbol = $1 ORDER BY time DESC")
+        let stock = sqlx::query("SELECT * FROM stock_prices WHERE ticker = $1 ORDER BY date DESC")
             .bind(ticker)
-            .fetch_one(&self.mock_db)
+            .fetch_optional(&self.mock_db)
             .await
             .and_then(|rec| {
                 Ok(Ticker {

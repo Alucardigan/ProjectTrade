@@ -8,12 +8,12 @@ use axum::{
 #[tracing::instrument(skip(app_state))]
 pub async fn get_ticker(
     State(app_state): State<AppState>,
-    Path(symbol): Path<String>,
+    Path(ticker): Path<String>,
 ) -> Result<Json<Vec<Ticker>>, ApiError> {
     Ok(Json(vec![
         app_state
             .ticker_service
-            .fetch_ticker_from_db(&symbol)
+            .fetch_ticker_from_db(&ticker)
             .await?,
     ]))
 }

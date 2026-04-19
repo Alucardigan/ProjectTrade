@@ -14,7 +14,7 @@ use axum::{routing::get, Router};
 
 pub fn create_router(app_state: AppState) -> Router<AppState> {
     let public_routes = Router::new()
-        .route("/tickers/:symbol", get(get_ticker))
+        .route("/tickers/:ticker", get(get_ticker))
         .route("/auth/login", post(login_user))
         .route("/health", get(health))
         .route("/auth/callback", get(auth0_callback));

@@ -59,11 +59,11 @@ impl PortfolioManagementService {
     pub async fn check_holdings(
         &self,
         user_id: Uuid,
-        symbol: &str,
+        ticker: &str,
     ) -> Result<BigDecimal, TradeError> {
         let rec = sqlx::query("SELECT * FROM portfolio WHERE user_id = $1 AND ticker = $2")
             .bind(user_id)
-            .bind(symbol)
+            .bind(ticker)
             .fetch_one(&self.db)
             .await
             .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
@@ -77,7 +77,7 @@ impl PortfolioManagementService {
     pub async fn add_to_portfolio(
         &self,
         user_id: Uuid,
-        symbol: &str,
+        ticker: &str,
         quantity: &BigDecimal,
         total_money_spent: &BigDecimal,
     ) -> Result<(), TradeError> {
@@ -88,7 +88,7 @@ impl PortfolioManagementService {
         )
         .bind(portfolio_id)
         .bind(user_id)
-        .bind(symbol)
+        .bind(ticker)
         .bind(quantity)
         .bind(total_money_spent)
         .execute(&self.db)
@@ -101,12 +101,12 @@ impl PortfolioManagementService {
     pub async fn remove_from_portfolio(
         &self,
         user_id: Uuid,
-        symbol: &str,
+        ticker: &str,
         quantity: &BigDecimal,
     ) -> Result<(), TradeError> {
         let get_rec = sqlx::query("SELECT * FROM portfolio WHERE user_id = $1 AND ticker = $2")
             .bind(user_id)
-            .bind(symbol)
+            .bind(ticker)
             .fetch_one(&self.db)
             .await
             .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
@@ -120,7 +120,7 @@ impl PortfolioManagementService {
         if get_rec_quantity == *quantity {
             sqlx::query("DELETE FROM portfolio WHERE user_id = $1 AND ticker = $2")
                 .bind(user_id)
-                .bind(symbol)
+                .bind(ticker)
                 .execute(&self.db)
                 .await
                 .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
@@ -129,7 +129,7 @@ impl PortfolioManagementService {
                 "UPDATE portfolio SET quantity = quantity - $3 WHERE user_id = $1 AND ticker = $2 AND quantity >= $3",
             )
             .bind(user_id)
-            .bind(symbol)
+            .bind(ticker)
             .bind(quantity)
             .execute(&self.db)
             .await

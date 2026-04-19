@@ -111,7 +111,7 @@ impl AppState {
         let _ = self.market_maker_service.initialise_market().await;
 
         handles.push(self.order_matchbook_service.create_worker_thread());
-        handles.push(self.market_maker_service.spawn_worker_thread().await);
+        handles.push(self.market_maker_service.spawn_price_engine().await);
         return handles;
     }
 }

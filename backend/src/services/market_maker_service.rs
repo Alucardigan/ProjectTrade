@@ -105,8 +105,8 @@ impl MarketMakerService {
         Ok(price_path)
     }
 
-    pub async fn spawn_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
-        info!("Starting market maker thread");
+    pub async fn spawn_price_engine(&self) -> JoinHandle<Result<(), TradeError>> {
+        info!("Starting price engine thread");
         let order_management_service = self.order_management_service.clone();
         let acceptable_tickers = self.acceptable_tickers.clone();
         let user_id = self.market_maker_user_id;
@@ -136,53 +136,21 @@ impl MarketMakerService {
                     };
 
                     let target_price_f64 = target_price.to_f64().unwrap_or(120.0);
-
-                    let bid_price = target_price_f64 * (1.0 - Self::SPREAD_PERCENTAGE);
-                    let ask_price = target_price_f64 * (1.0 + Self::SPREAD_PERCENTAGE);
-
-                    let bid_decimal =
-                        BigDecimal::from_f64(bid_price).unwrap_or(target_price.clone());
-                    let ask_decimal =
-                        BigDecimal::from_f64(ask_price).unwrap_or(target_price.clone());
-
-                    if let Err(e) = order_management_service
-                        .place_order(
-                            user_id,
-                            &ticker.clone(),
-                            BigDecimal::from(Self::STOCK_QUANTITY),
-                            OrderType::Buy,
-                            BigDecimal::zero(),
-                            Some(bid_decimal),
-                        )
-                        .await
-                    {
-                        tracing::error!(
-                            "Market Maker failed to place Buy order for {}: {:?}",
-                            ticker,
-                            e
-                        );
-                    }
-
-                    if let Err(e) = order_management_service
-                        .place_order(
-                            user_id,
-                            &ticker.clone(),
-                            BigDecimal::from(Self::STOCK_QUANTITY),
-                            OrderType::Sell,
-                            BigDecimal::zero(),
-                            Some(ask_decimal),
-                        )
-                        .await
-                    {
-                        tracing::error!(
-                            "Market Maker failed to place Sell order for {}: {:?}",
-                            ticker,
-                            e
-                        );
-                    }
+                    let current_price_f64 = self
+                        .get_current_price(ticker)
+                        .await?
                 }
             }
         })
+    }
+    pub async fn spawn_market_maker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
+        info!("Starting market maker thread");
+        let order_management_service = self.order_management_service.clone();
+        let acceptable_tickers = self.acceptable_tickers.clone();
+        let user_id = self.market_maker_user_id;
+
+        // We clone the Arc to move it into the background thread so it can constantly read live states
+        let price_paths_ref = Arc::new(self.ticker_price_paths.read().await.clone());
     }
 
     fn brownian_motion(target_price: f64, current_price: f64, time_step: u32) -> Vec<BigDecimal> {

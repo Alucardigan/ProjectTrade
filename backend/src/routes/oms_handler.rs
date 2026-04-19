@@ -16,7 +16,7 @@ use uuid::Uuid;
 //request and response bodies
 #[derive(Deserialize, Debug)]
 pub struct PlaceOrderRequest {
-    pub symbol: String,
+    pub ticker: String,
     pub quantity: BigDecimal,
     pub order_type: OrderType, // Assuming OrderType also implements Deserialize
     pub price_buffer: BigDecimal,
@@ -67,7 +67,7 @@ pub async fn place_order(
         .order_management_service
         .place_order(
             user_id,
-            &request_body.symbol,
+            &request_body.ticker,
             request_body.quantity,
             request_body.order_type,
             request_body.price_buffer,
