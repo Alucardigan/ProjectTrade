@@ -37,7 +37,7 @@ impl TickerService {
         debug!("Fetching ticker from DB");
         let stock = sqlx::query("SELECT * FROM stock_prices WHERE ticker = $1 ORDER BY date DESC")
             .bind(ticker)
-            .fetch_optional(&self.mock_db)
+            .fetch_one(&self.mock_db)
             .await
             .and_then(|rec| {
                 Ok(Ticker {

@@ -100,6 +100,20 @@ impl OrderMatchbookService {
         Ok(())
     }
 
+    pub async fn get_open_orders(&self) -> Vec<Order> {
+        let books = self.order_books.read().await;
+        let mut open_orders = Vec::new();
+        for order_book in books.values() {
+            for orders in order_book.buys.values() {
+                open_orders.extend(orders.iter().cloned());
+            }
+            for orders in order_book.sells.values() {
+                open_orders.extend(orders.iter().cloned());
+            }
+        }
+        open_orders
+    }
+
     pub fn create_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
         info!("Starting order processor thread");
         let order_books = Arc::clone(&self.order_books);
