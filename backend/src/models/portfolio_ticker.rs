@@ -12,3 +12,18 @@ pub struct PortfolioTicker {
     pub total_profit: BigDecimal,
     pub created_at: DateTime<Utc>,
 }
+
+#[derive(Serialize)]
+pub struct HistoricalStockValue {
+    pub date: DateTime<Utc>,
+    pub ticker: String,
+    pub price_per_share: BigDecimal,
+    pub quantity: BigDecimal,
+    pub total_value: BigDecimal,
+}
+
+#[derive(Serialize)]
+pub struct PortfolioHistoryPoint {
+    pub date: DateTime<Utc>,
+    pub total_value: BigDecimal,
+}

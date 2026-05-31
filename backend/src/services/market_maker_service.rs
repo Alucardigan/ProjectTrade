@@ -90,7 +90,7 @@ impl MarketMakerService {
         &self,
         ticker: String,
     ) -> Result<Vec<BigDecimal>, TradeError> {
-        let market_price = self.ticker_service.fetch_ticker_from_db(&ticker).await?;
+        let market_price = self.ticker_service.fetch_latest_price_ticker_from_db(&ticker).await?;
         let current_price_opt = self.get_current_price(&ticker).await?;
         let start_price = match current_price_opt {
             Some(price) => price,
@@ -136,7 +136,7 @@ impl MarketMakerService {
                         }
                     };
                     let current_price = ticker_service_clone
-                        .fetch_ticker_from_db(ticker)
+                        .fetch_latest_price_ticker_from_db(ticker)
                         .await?
                         .close;
                     if (&current_price - target_price).abs() < BigDecimal::from(1) {

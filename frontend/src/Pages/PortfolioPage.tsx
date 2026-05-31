@@ -1,5 +1,6 @@
 import { Text } from "@/components/retroui/Text";
 import { PortfolioSummary } from "@/components/CustomComponents/PortfolioSummary";
+import { PortfolioChart } from "@/components/CustomComponents/PortfolioChart";
 import { HoldingsGrid } from "@/components/CustomComponents/HoldingsGrid";
 import { useMemo } from "react";
 import { Button } from "@/components/retroui/Button";
@@ -133,6 +134,9 @@ const PortfolioPage = () => {
                     gainPercentage={gainPercentage}
                     totalLiabilities={totalLiabilities}
                 />
+
+                {/* Performance Chart */}
+                <PortfolioChart />
 
                 {/* Holdings List */}
                 <HoldingsGrid portfolio={activePortfolio.portfolio} />

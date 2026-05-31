@@ -5,9 +5,9 @@ use crate::routes::health::health;
 use crate::routes::loan_handler::{get_loan, repay_loan, request_loan};
 use crate::routes::middleware::auth0_middleware;
 use crate::routes::oms_handler::{cancel_order, get_order, get_pending_orders, place_order};
-use crate::routes::portfolio_handler::get_portfolio;
+use crate::routes::portfolio_handler::{get_portfolio, get_portfolio_history};
 use crate::routes::user_handler::{auth0_callback, login_user};
-use crate::{app_state::AppState, routes::ticker_handler::get_ticker};
+use crate::{app_state::AppState, routes::ticker_handler::{get_ticker, get_ticker_history}};
 use axum::middleware::from_fn_with_state;
 use axum::routing::{delete, post};
 use axum::{routing::get, Router};
@@ -15,11 +15,13 @@ use axum::{routing::get, Router};
 pub fn create_router(app_state: AppState) -> Router<AppState> {
     let public_routes = Router::new()
         .route("/tickers/:ticker", get(get_ticker))
+        .route("/tickers/:ticker/history", get(get_ticker_history))
         .route("/auth/login", post(login_user))
         .route("/health", get(health))
         .route("/auth/callback", get(auth0_callback));
     let private_routes = Router::new()
         .route("/portfolio", get(get_portfolio))
+        .route("/portfolio/history", get(get_portfolio_history))
         .route("/account", get(get_account_balance))
         .route("/account/withdrawals", post(withdraw_funds))
         .route("/account/deposits", post(add_to_user_balance))

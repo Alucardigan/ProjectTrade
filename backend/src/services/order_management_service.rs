@@ -70,7 +70,7 @@ impl OrderManagementService {
         //price calculation
         let price_per_share = match price_per_share {
             Some(price) => price,
-            None => self.trade_service.fetch_ticker_from_db(ticker).await?.close,
+            None => self.trade_service.fetch_latest_price_ticker_from_db(ticker).await?.close,
         };
         let total_purchase_price = &price_per_share * &quantity;
         match order_type {

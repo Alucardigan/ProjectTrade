@@ -12,3 +12,18 @@ export const fetchPortfolio = async (): Promise<PortfolioResponse> => {
         throw error;
     }
 };
+
+export interface PortfolioHistoryPoint {
+  date: string;
+  total_value: string;
+}
+
+export const fetchPortfolioHistory = async (timeframe: string): Promise<PortfolioHistoryPoint[]> => {
+    try {
+        const { data } = await axios.get(`/api/portfolio/history?timeframe=${timeframe}`);
+        return data;
+    } catch (error) {
+        console.error("Error fetching portfolio history:", error);
+        throw error;
+    }
+}
