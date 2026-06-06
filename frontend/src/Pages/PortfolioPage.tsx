@@ -120,7 +120,7 @@ const PortfolioPage = () => {
                                 <Text className="text-gray-900 font-mono font-bold">{new Date().toLocaleTimeString()}</Text>
                             </div>
                             <Button variant="default" size="icon" onClick={handleRefetch}>
-                                <RefreshCw className={`w-5 h-5 ${isLoanLoading ? 'animate-spin' : ''}`} />
+                                <RefreshCw className={`w-5 h-5 {isLoanLoading ? 'animate-spin' : ''}`} />
                             </Button>
                         </div>
                     </div>

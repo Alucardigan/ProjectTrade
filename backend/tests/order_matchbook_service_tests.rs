@@ -32,7 +32,7 @@ async fn test_add_order_and_get_best_sale() {
 
     let ticker = "AAPL";
 
-    // Add Buy Orders: $100, $105, $102
+    // Add Buy Orders: 100, 105, 102
     let buy1 = create_dummy_order(ticker, 100.0, OrderType::Buy);
     let buy2 = create_dummy_order(ticker, 105.0, OrderType::Buy); // Best Buy
     let buy3 = create_dummy_order(ticker, 102.0, OrderType::Buy);
@@ -41,7 +41,7 @@ async fn test_add_order_and_get_best_sale() {
     service.add_order(buy2.clone()).await.unwrap();
     service.add_order(buy3).await.unwrap();
 
-    // Add Sell Orders: $110, $108, $115
+    // Add Sell Orders: 110, 108, 115
     let sell1 = create_dummy_order(ticker, 110.0, OrderType::Sell);
     let sell2 = create_dummy_order(ticker, 108.0, OrderType::Sell); // Best Sell
     let sell3 = create_dummy_order(ticker, 115.0, OrderType::Sell);

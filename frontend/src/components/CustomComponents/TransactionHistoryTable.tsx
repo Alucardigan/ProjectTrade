@@ -51,10 +51,10 @@ export const TransactionHistoryTable = ({ transactions }: TransactionHistoryTabl
                                             <Text className="font-bold text-gray-700">{quantity}</Text>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right">
-                                            <Text className="font-bold text-gray-700">${price.toFixed(2)}</Text>
+                                            <Text className="font-bold text-gray-700">{price.toFixed(2)}</Text>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right">
-                                            <Text className="font-black text-gray-900">${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                                            <Text className="font-black text-gray-900">{total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
                                             <Text className="font-black text-gray-900">{transaction.executed_at}</Text>

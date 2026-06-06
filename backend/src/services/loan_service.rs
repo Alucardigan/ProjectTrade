@@ -27,7 +27,7 @@ impl LoanService {
     }
     //should convert this into a function that also checks if user has a loan
     pub async fn get_loan(&self, user_id: Uuid) -> Result<Loan, UserError> {
-        let loan = sqlx::query("SELECT * FROM loans WHERE user_id = $1 AND status != 'PAID'")
+        let loan = sqlx::query("SELECT * FROM loans WHERE user_id = 1 AND status != 'PAID'")
             .bind(user_id)
             .fetch_one(&self.db)
             .await;
@@ -63,7 +63,7 @@ impl LoanService {
             Utc::now(),
             Utc::now(),
         );
-        sqlx::query("INSERT INTO loans (loan_id, user_id, principal, original_loan_amount, interest_rate, status, created_at, last_paid_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
+        sqlx::query("INSERT INTO loans (loan_id, user_id, principal, original_loan_amount, interest_rate, status, created_at, last_paid_at) VALUES (1, 2, 3, 4, 5, 6, 7, 8)")
             .bind(&loan.loan_id)
             .bind(&loan.user_id)
             .bind(&loan.principal)
@@ -86,7 +86,7 @@ impl LoanService {
         user_id: Uuid,
         loan_status: LoanStatus,
     ) -> Result<(), TradeError> {
-        sqlx::query("UPDATE loans SET status = $2 WHERE user_id = $1")
+        sqlx::query("UPDATE loans SET status = 2 WHERE user_id = 1")
             .bind(user_id)
             .bind(loan_status)
             .execute(&self.db)
@@ -134,7 +134,7 @@ impl LoanService {
         if remaining_principal <= BigDecimal::from(0) {
             self.set_loan_status(user_id, LoanStatus::PAID).await?;
         } else {
-            sqlx::query("UPDATE loans SET principal = $2, last_paid_at = $3 WHERE loan_id = $1")
+            sqlx::query("UPDATE loans SET principal = 2, last_paid_at = 3 WHERE loan_id = 1")
                 .bind(loan.loan_id)
                 .bind(remaining_principal)
                 .bind(Utc::now())

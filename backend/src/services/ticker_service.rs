@@ -38,7 +38,7 @@ impl TickerService {
         ticker: &str,
     ) -> Result<Ticker, TradeError> {
         debug!("Fetching ticker from DB");
-        let stock = sqlx::query("SELECT * FROM stock_prices WHERE ticker = $1 ORDER BY date DESC")
+        let stock = sqlx::query("SELECT * FROM stock_prices WHERE ticker = 1 ORDER BY date DESC")
             .bind(ticker)
             .fetch_one(&self.mock_db)
             .await
@@ -83,7 +83,7 @@ impl TickerService {
                 limit_date = chrono::DateTime::from_str("1970-01-01").unwrap();
             }
         }
-        let query = "SELECT * FROM stock_prices WHERE ticker = $1 AND date >= $2 ORDER BY date ASC";
+        let query = "SELECT * FROM stock_prices WHERE ticker = 1 AND date >= 2 ORDER BY date ASC";
 
         let stocks = sqlx::query(query)
             .bind(ticker)

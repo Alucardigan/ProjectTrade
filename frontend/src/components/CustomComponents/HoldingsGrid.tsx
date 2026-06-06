@@ -50,17 +50,17 @@ export const HoldingsGrid = ({ portfolio }: HoldingsGridProps) => {
                                     </div>
                                     <div className="flex justify-between items-center border-b-2 border-dashed border-gray-200 pb-2">
                                         <Text className="text-gray-500 text-sm font-bold">Current Price</Text>
-                                        <Text className="font-bold text-gray-900">${price.toFixed(2)}</Text>
+                                        <Text className="font-bold text-gray-900">{price.toFixed(2)}</Text>
                                     </div>
                                     <div className="flex justify-between items-center pt-1">
                                         <Text className="text-gray-500 text-sm font-bold">Total Value</Text>
                                         <Text className="font-black text-gray-900 text-lg">
-                                            ${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            {currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </Text>
                                     </div>
                                     <div className="flex justify-between items-center pt-1">
                                         <Text className="text-gray-500 text-sm font-bold">Profit/Loss</Text>
-                                        <Text className={`font-black text-lg ${isProfit ? "text-green-600" : "text-red-600"}`}>
+                                        <Text className={`font-black text-lg {isProfit ? "text-green-600" : "text-red-600"}`}>
                                             {isProfit ? "+" : ""}{profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </Text>
                                     </div>

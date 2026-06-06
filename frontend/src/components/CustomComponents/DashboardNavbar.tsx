@@ -32,7 +32,7 @@ export const DashboardNavbar = () => {
                                 <Loader2 className="w-4 h-4 animate-spin mt-1" />
                             ) : (
                                 <span className="font-black text-green-900">
-                                    ${Number(accountData?.available_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {Number(accountData?.available_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                             )}
                         </div>

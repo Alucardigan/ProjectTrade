@@ -109,7 +109,7 @@ impl OrderManagementService {
         let _rec = sqlx::query(
             "INSERT INTO orders 
         (order_id, user_id, ticker, quantity, price_per_share, order_type, status) 
-        VALUES ($1, $2, $3, $4, $5, $6::order_type, $7::order_status)",
+        VALUES (1, 2, 3, 4, 5, 6::order_type, 7::order_status)",
         )
         .bind(&created_order.order_id)
         .bind(&created_order.user_id)
@@ -130,7 +130,7 @@ impl OrderManagementService {
         order_id: Uuid,
         user_id: Uuid,
     ) -> Result<OrderStatus, TradeError> {
-        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1 AND user_id = $2")
+        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = 1 AND user_id = 2")
             .bind(order_id)
             .bind(user_id)
             .fetch_one(&self.db)
@@ -144,7 +144,7 @@ impl OrderManagementService {
 
     #[tracing::instrument(skip(self))]
     pub async fn cancel_order(&self, order_id: Uuid, user_id: Uuid) -> Result<(), TradeError> {
-        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1 AND user_id = $2")
+        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = 1 AND user_id = 2")
             .bind(order_id)
             .bind(user_id)
             .fetch_one(&self.db)
@@ -157,7 +157,7 @@ impl OrderManagementService {
         if order_status_str == OrderStatus::Cancelled {
             return Ok(());
         }
-        sqlx::query("UPDATE orders SET status = 'Cancelled' WHERE order_id = $1")
+        sqlx::query("UPDATE orders SET status = 'Cancelled' WHERE order_id = 1")
             .bind(order_id)
             .execute(&self.db)
             .await
@@ -167,7 +167,7 @@ impl OrderManagementService {
 
     #[tracing::instrument(skip(self))]
     pub async fn get_pending_orders(&self, user_id: Uuid) -> Result<Vec<Order>, TradeError> {
-        let rec = sqlx::query("SELECT * FROM orders WHERE user_id = $1 and status = $2")
+        let rec = sqlx::query("SELECT * FROM orders WHERE user_id = 1 and status = 2")
             .bind(user_id)
             .bind(OrderStatus::Pending)
             .fetch_all(&self.db)
@@ -192,7 +192,7 @@ impl OrderManagementService {
 
     #[tracing::instrument(skip(self))]
     pub async fn get_order(&self, order_id: Uuid, user_id: Uuid) -> Result<Order, TradeError> {
-        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1 AND user_id = $2")
+        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = 1 AND user_id = 2")
             .bind(order_id)
             .bind(user_id)
             .fetch_one(&self.db)
@@ -211,7 +211,7 @@ impl OrderManagementService {
     }
 
     pub async fn cancel_all_orders(&self, user_id: Uuid) -> Result<(), TradeError> {
-        sqlx::query("UPDATE orders SET status = 'Cancelled' WHERE user_id = $1")
+        sqlx::query("UPDATE orders SET status = 'Cancelled' WHERE user_id = 1")
             .bind(user_id)
             .execute(&self.db)
             .await

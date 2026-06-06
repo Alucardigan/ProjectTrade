@@ -20,7 +20,7 @@ export const PortfolioSummary = ({ totalValue, totalGain, totalCost, gainPercent
                         <div>
                             <Text className="text-gray-500 font-bold text-xs uppercase tracking-wider">Total Value</Text>
                             <Text as="h2" className="mt-2 text-3xl font-black text-gray-900">
-                                ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </Text>
                         </div>
                         <div className="p-3 bg-blue-100 rounded-lg border-2 border-black">
@@ -36,8 +36,8 @@ export const PortfolioSummary = ({ totalValue, totalGain, totalCost, gainPercent
                         <div>
                             <Text className="text-gray-500 font-bold text-xs uppercase tracking-wider">Total Gain/Loss</Text>
                             <div className="flex items-baseline gap-2 mt-2">
-                                <Text as="h2" className={`text-3xl font-black ${totalGain >= 0 ? "text-green-600" : "text-red-600"}`}>
-                                    {totalGain >= 0 ? "+" : ""}${Math.abs(totalGain).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                <Text as="h2" className={`text-3xl font-black {totalGain >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                    {totalGain >= 0 ? "+" : ""}{Math.abs(totalGain).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </Text>
                             </div>
                             <div className="mt-2">
@@ -47,7 +47,7 @@ export const PortfolioSummary = ({ totalValue, totalGain, totalCost, gainPercent
                                 </Badge>
                             </div>
                         </div>
-                        <div className={`p-3 rounded-lg border-2 border-black ${totalGain >= 0 ? "bg-green-100" : "bg-red-100"}`}>
+                        <div className={`p-3 rounded-lg border-2 border-black {totalGain >= 0 ? "bg-green-100" : "bg-red-100"}`}>
                             {totalGain >= 0 ? <TrendingUp className="w-6 h-6 text-green-700" /> : <TrendingDown className="w-6 h-6 text-red-700" />}
                         </div>
                     </div>
@@ -60,7 +60,7 @@ export const PortfolioSummary = ({ totalValue, totalGain, totalCost, gainPercent
                         <div>
                             <Text className="text-gray-500 font-bold text-xs uppercase tracking-wider">Invested Capital</Text>
                             <Text as="h2" className="mt-2 text-3xl font-black text-gray-900">
-                                ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </Text>
                         </div>
                         <div className="p-3 bg-purple-100 rounded-lg border-2 border-black">
@@ -76,7 +76,7 @@ export const PortfolioSummary = ({ totalValue, totalGain, totalCost, gainPercent
                         <div>
                             <Text className="text-gray-500 font-bold text-xs uppercase tracking-wider">Total Liabilities</Text>
                             <Text as="h2" className="mt-2 text-3xl font-black text-red-600">
-                                ${totalLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {totalLiabilities.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </Text>
                         </div>
                         <div className="p-3 bg-red-100 rounded-lg border-2 border-black">

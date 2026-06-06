@@ -20,7 +20,7 @@ export const MockPortfolioCard = () => {
                 <div className="flex justify-between items-end">
                     <div>
                         <Text className="text-xs font-bold text-gray-500 uppercase">Total Balance</Text>
-                        <Text className="text-4xl font-black">$124,592.45</Text>
+                        <Text className="text-4xl font-black">124,592.45</Text>
                     </div>
                     <Badge variant="success" className="border-2 border-black text-sm px-3 py-1">
                         +12.5%
@@ -29,7 +29,7 @@ export const MockPortfolioCard = () => {
                 <div className="space-y-3">
                     {[1, 2, 3].map((i) => (
                         <div key={i} className="flex items-center gap-4 p-3 bg-gray-50 border-2 border-black rounded hover:bg-blue-50 transition-colors cursor-pointer">
-                            <div className={`w-10 h-10 rounded border-2 border-black flex items-center justify-center ${i === 1 ? 'bg-red-100' : i === 2 ? 'bg-green-100' : 'bg-purple-100'}`}>
+                            <div className={`w-10 h-10 rounded border-2 border-black flex items-center justify-center {i === 1 ? 'bg-red-100' : i === 2 ? 'bg-green-100' : 'bg-purple-100'}`}>
                                 <TrendingUp className="w-5 h-5" />
                             </div>
                             <div className="flex-1">

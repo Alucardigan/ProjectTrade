@@ -53,7 +53,7 @@ export const SellModal = ({ isOpen, onClose, ticker, maxQuantity, currentPrice }
                         Sell {ticker}
                     </DialogTitle>
                     <Text className="text-gray-600 font-medium">
-                        Current Price: <span className="font-bold text-black">${currentPrice.toFixed(2)}</span>
+                        Current Price: <span className="font-bold text-black">{currentPrice.toFixed(2)}</span>
                     </Text>
                 </DialogHeader>
 
@@ -80,7 +80,7 @@ export const SellModal = ({ isOpen, onClose, ticker, maxQuantity, currentPrice }
                         <div className="flex justify-between items-end">
                             <Text className="text-sm font-bold uppercase text-gray-500">Estimated Value</Text>
                             <Text className="text-2xl font-black text-green-600">
-                                ${estimatedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {estimatedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </Text>
                         </div>
                     </div>

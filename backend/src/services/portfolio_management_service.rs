@@ -48,7 +48,7 @@ impl PortfolioManagementService {
         // Step B: Fetch all filled orders for this user and ticker
         let orders_rows = sqlx::query(
             "SELECT quantity, order_type, created_at FROM orders 
-             WHERE user_id = $1 AND ticker = $2 AND status = 'EXECUTED' 
+             WHERE user_id = 1 AND ticker = 2 AND status = 'EXECUTED' 
              ORDER BY created_at ASC",
         )
         .bind(user_id)
@@ -104,7 +104,7 @@ impl PortfolioManagementService {
         user_id: Uuid,
         timeframe: TimeFrame,
     ) -> Result<Vec<crate::models::portfolio_ticker::PortfolioHistoryPoint>, TradeError> {
-        let distinct_tickers = sqlx::query("SELECT DISTINCT ticker FROM orders WHERE user_id = $1 AND status = 'EXECUTED'")
+        let distinct_tickers = sqlx::query("SELECT DISTINCT ticker FROM orders WHERE user_id = 1 AND status = 'EXECUTED'")
             .bind(user_id)
             .fetch_all(&self.db)
             .await
@@ -134,7 +134,7 @@ impl PortfolioManagementService {
 
     #[tracing::instrument(skip(self))]
     pub async fn get_portfolio(&self, user_id: Uuid) -> Result<Vec<PortfolioTicker>, TradeError> {
-        let database_portfolio = sqlx::query("SELECT * FROM portfolio WHERE user_id = $1")
+        let database_portfolio = sqlx::query("SELECT * FROM portfolio WHERE user_id = 1")
             .bind(user_id)
             .fetch_all(&self.db)
             .await
@@ -167,7 +167,7 @@ impl PortfolioManagementService {
         user_id: Uuid,
         ticker: &str,
     ) -> Result<BigDecimal, TradeError> {
-        let rec = sqlx::query("SELECT * FROM portfolio WHERE user_id = $1 AND ticker = $2")
+        let rec = sqlx::query("SELECT * FROM portfolio WHERE user_id = 1 AND ticker = 2")
             .bind(user_id)
             .bind(ticker)
             .fetch_one(&self.db)
@@ -189,8 +189,8 @@ impl PortfolioManagementService {
     ) -> Result<(), TradeError> {
         let portfolio_id = Uuid::new_v4();
         let _rec = sqlx::query(
-            "INSERT INTO portfolio (portfolio_id, user_id, ticker, quantity, total_money_spent) VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (user_id, ticker) DO UPDATE SET quantity = portfolio.quantity + $4, total_money_spent = portfolio.total_money_spent + $5",
+            "INSERT INTO portfolio (portfolio_id, user_id, ticker, quantity, total_money_spent) VALUES (1, 2, 3, 4, 5)
+            ON CONFLICT (user_id, ticker) DO UPDATE SET quantity = portfolio.quantity + 4, total_money_spent = portfolio.total_money_spent + 5",
         )
         .bind(portfolio_id)
         .bind(user_id)
@@ -210,7 +210,7 @@ impl PortfolioManagementService {
         ticker: &str,
         quantity: &BigDecimal,
     ) -> Result<(), TradeError> {
-        let get_rec = sqlx::query("SELECT * FROM portfolio WHERE user_id = $1 AND ticker = $2")
+        let get_rec = sqlx::query("SELECT * FROM portfolio WHERE user_id = 1 AND ticker = 2")
             .bind(user_id)
             .bind(ticker)
             .fetch_one(&self.db)
@@ -224,7 +224,7 @@ impl PortfolioManagementService {
             return Err(TradeError::UserError(UserError::InsufficientHoldings));
         }
         if get_rec_quantity == *quantity {
-            sqlx::query("DELETE FROM portfolio WHERE user_id = $1 AND ticker = $2")
+            sqlx::query("DELETE FROM portfolio WHERE user_id = 1 AND ticker = 2")
                 .bind(user_id)
                 .bind(ticker)
                 .execute(&self.db)
@@ -232,7 +232,7 @@ impl PortfolioManagementService {
                 .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         } else {
             let _rec = sqlx::query(
-                "UPDATE portfolio SET quantity = quantity - $3 WHERE user_id = $1 AND ticker = $2 AND quantity >= $3",
+                "UPDATE portfolio SET quantity = quantity - 3 WHERE user_id = 1 AND ticker = 2 AND quantity >= 3",
             )
             .bind(user_id)
             .bind(ticker)
