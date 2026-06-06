@@ -20,7 +20,7 @@ pub async fn auth0_middleware(
         .map_err(|_| ApiError::Unauthorized("Invalid session ID".to_string()))?;
     //get the user_id
     let record =
-        sqlx::query("SELECT user_id FROM sessions WHERE session_id = 1 AND expires_at > 2")
+        sqlx::query("SELECT user_id FROM sessions WHERE session_id = $1 AND expires_at > $2")
             .bind(session_uuid)
             .bind(Utc::now().naive_utc())
             .fetch_one(&app_state.db)
@@ -32,7 +32,7 @@ pub async fn auth0_middleware(
         .try_get("user_id")
         .map_err(|_| ApiError::Unauthorized("Database error: can't fetch user id".to_string()))?;
     //update session db
-    sqlx::query("UPDATE sessions SET updated_at = 1 WHERE session_id = 2")
+    sqlx::query("UPDATE sessions SET updated_at = $1 WHERE session_id = $2")
         .bind(Utc::now().naive_utc())
         .bind(session_uuid)
         .execute(&app_state.db)

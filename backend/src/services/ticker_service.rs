@@ -38,7 +38,7 @@ impl TickerService {
         ticker: &str,
     ) -> Result<Ticker, TradeError> {
         debug!("Fetching ticker from DB");
-        let stock = sqlx::query("SELECT * FROM stock_prices WHERE ticker = 1 ORDER BY date DESC")
+        let stock = sqlx::query("SELECT * FROM stock_prices WHERE ticker = $1 ORDER BY date DESC")
             .bind(ticker)
             .fetch_one(&self.mock_db)
             .await
@@ -62,7 +62,13 @@ impl TickerService {
         ticker: &str,
         timeframe: TimeFrame,
     ) -> Result<Vec<Ticker>, TradeError> {
-        let mut limit_date = chrono::Utc::now();
+        let max_date_query = "SELECT MAX(date) FROM stock_prices WHERE ticker = $1";
+        let mut limit_date: chrono::DateTime<Utc> = sqlx::query(max_date_query)
+            .bind(ticker)
+            .fetch_one(&self.mock_db)
+            .await
+            .and_then(|row| row.try_get(0))
+            .unwrap_or_else(|_| chrono::Utc::now());
         match timeframe {
             TimeFrame::Day => {
                 limit_date -= chrono::Duration::days(1);
@@ -80,10 +86,10 @@ impl TickerService {
                 limit_date -= chrono::Duration::days(5 * 365);
             }
             TimeFrame::AllYears => {
-                limit_date = chrono::DateTime::from_str("1970-01-01").unwrap();
+                limit_date = chrono::DateTime::from_timestamp(0, 0).unwrap();
             }
         }
-        let query = "SELECT * FROM stock_prices WHERE ticker = 1 AND date >= 2 ORDER BY date ASC";
+        let query = "SELECT * FROM stock_prices WHERE ticker = $1 AND date >= $2 ORDER BY date ASC";
 
         let stocks = sqlx::query(query)
             .bind(ticker)

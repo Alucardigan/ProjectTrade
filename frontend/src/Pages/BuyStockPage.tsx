@@ -62,7 +62,7 @@ const BuyStockPage = () => {
         if (!ticker || !quantity) return;
 
         mutation.mutate({
-            symbol: ticker,
+            ticker: ticker,
             quantity: Number(quantity),
             order_type: OrderType.Buy,
             price_buffer: 0

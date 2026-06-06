@@ -52,7 +52,7 @@ impl UserService {
         let row = sqlx::query(
             "
             INSERT INTO users (user_id, auth_user_id, username, email) 
-            VALUES (1, 2, 3, 4)
+            VALUES ($1, $2, $3, $4)
             ON CONFLICT (auth_user_id) DO UPDATE SET username = EXCLUDED.username, email = EXCLUDED.email
             RETURNING user_id
             ",
@@ -99,7 +99,7 @@ impl UserService {
     //should this function exist?
     #[tracing::instrument(skip(self))]
     pub async fn get_user_uuid(&self, username: &str) -> Result<Uuid, UserError> {
-        let rec = sqlx::query("SELECT user_id FROM users WHERE username = 1")
+        let rec = sqlx::query("SELECT user_id FROM users WHERE username = $1")
             .bind(username)
             .fetch_one(&self.user_db)
             .await
@@ -142,7 +142,7 @@ impl UserService {
         sqlx::query(
             "
             INSERT INTO sessions (session_id, user_id, expires_at) 
-            VALUES (1, 2, 3)
+            VALUES ($1, $2, $3)
             ",
         )
         .bind(session_id)

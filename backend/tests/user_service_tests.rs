@@ -46,7 +46,7 @@ async fn test_user_service_registration() {
 
     // Verify user exists and has balance account
     let user_id = service.get_user_uuid(&username).await.unwrap();
-    let balance = sqlx::query("SELECT balance FROM users WHERE user_id = 1")
+    let balance = sqlx::query("SELECT balance FROM users WHERE user_id = $1")
         .bind(user_id)
         .fetch_one(&pool)
         .await;

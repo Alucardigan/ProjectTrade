@@ -120,26 +120,30 @@ const PortfolioPage = () => {
                                 <Text className="text-gray-900 font-mono font-bold">{new Date().toLocaleTimeString()}</Text>
                             </div>
                             <Button variant="default" size="icon" onClick={handleRefetch}>
-                                <RefreshCw className={`w-5 h-5 {isLoanLoading ? 'animate-spin' : ''}`} />
+                                <RefreshCw className={`w-5 h-5 ${isLoanLoading ? 'animate-spin' : ''}`} />
                             </Button>
                         </div>
                     </div>
                 </div>
 
-                {/* Summary Cards */}
-                <PortfolioSummary
-                    totalValue={totalValue}
-                    totalGain={totalGain}
-                    totalCost={totalCost}
-                    gainPercentage={gainPercentage}
-                    totalLiabilities={totalLiabilities}
-                />
+                <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    {/* Left Column: Chart and Holdings */}
+                    <div className="lg:col-span-2 xl:col-span-3 space-y-8">
+                        <PortfolioChart />
+                        <HoldingsGrid portfolio={activePortfolio.portfolio} />
+                    </div>
 
-                {/* Performance Chart */}
-                <PortfolioChart />
-
-                {/* Holdings List */}
-                <HoldingsGrid portfolio={activePortfolio.portfolio} />
+                    {/* Right Column: Summary Cards */}
+                    <div className="lg:col-span-1 xl:col-span-1">
+                        <PortfolioSummary
+                            totalValue={totalValue}
+                            totalGain={totalGain}
+                            totalCost={totalCost}
+                            gainPercentage={gainPercentage}
+                            totalLiabilities={totalLiabilities}
+                        />
+                    </div>
+                </div>
             </div>
         </div>
     );

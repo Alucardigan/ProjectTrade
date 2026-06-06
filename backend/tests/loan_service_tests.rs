@@ -35,14 +35,16 @@ async fn test_loan_request() {
     // Create user first (omitted for brevity, assume user exists or mock it)
     // For integration test, we'd need to insert a user.
     // Let's just insert a dummy user directly into DB for this test
-    sqlx::query("INSERT INTO users (user_id, auth_user_id, username, email) VALUES (1, 2, 3, 4)")
-        .bind(user_id)
-        .bind(format!("auth0|{}", Uuid::new_v4()))
-        .bind(format!("user_{}", Uuid::new_v4()))
-        .bind(format!("user_{}@example.com", Uuid::new_v4()))
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "INSERT INTO users (user_id, auth_user_id, username, email) VALUES ($1, $2, $3, $4)",
+    )
+    .bind(user_id)
+    .bind(format!("auth0|{}", Uuid::new_v4()))
+    .bind(format!("user_{}", Uuid::new_v4()))
+    .bind(format!("user_{}@example.com", Uuid::new_v4()))
+    .execute(&pool)
+    .await
+    .unwrap();
 
     // Initialize balance
 

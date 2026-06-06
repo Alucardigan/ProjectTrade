@@ -5,6 +5,7 @@ import { Button } from "@/components/retroui/Button";
 import { ArrowUpRight, ArrowDownRight, Layers, DollarSign } from "lucide-react";
 import type { PortfolioTicker } from "../../types/Portfolio_Response";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { SellModal } from "./SellModal";
 
 interface HoldingsGridProps {
@@ -12,6 +13,7 @@ interface HoldingsGridProps {
 }
 
 export const HoldingsGrid = ({ portfolio }: HoldingsGridProps) => {
+    const navigate = useNavigate();
     const [selectedSellTicker, setSelectedSellTicker] = useState<{ ticker: string, quantity: number, price: number } | null>(null);
 
     return (
@@ -32,7 +34,11 @@ export const HoldingsGrid = ({ portfolio }: HoldingsGridProps) => {
                         <Card key={item.ticker} className="w-full bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 group">
                             <Card.Content className="p-6">
                                 <div className="flex justify-between items-start mb-4">
-                                    <div className="bg-gray-100 p-3 rounded-xl border-2 border-black group-hover:bg-yellow-100 transition-colors">
+                                    <div 
+                                        className="bg-gray-100 p-3 rounded-xl border-2 border-black group-hover:bg-yellow-100 transition-colors cursor-pointer hover:scale-105"
+                                        onClick={() => navigate(`/stock/${item.ticker}`)}
+                                        title={`View ${item.ticker} Chart`}
+                                    >
                                         <Text as="h4" className="font-black text-xl text-gray-900">{item.ticker}</Text>
                                     </div>
                                     <div className="text-right">
@@ -60,18 +66,26 @@ export const HoldingsGrid = ({ portfolio }: HoldingsGridProps) => {
                                     </div>
                                     <div className="flex justify-between items-center pt-1">
                                         <Text className="text-gray-500 text-sm font-bold">Profit/Loss</Text>
-                                        <Text className={`font-black text-lg {isProfit ? "text-green-600" : "text-red-600"}`}>
+                                        <Text className={`font-black text-lg ${isProfit ? "text-green-600" : "text-red-600"}`}>
                                             {isProfit ? "+" : ""}{profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </Text>
                                     </div>
                                 </div>
 
-                                <Button
-                                    onClick={() => setSelectedSellTicker({ ticker: item.ticker, quantity: Number(item.quantity), price })}
-                                    className="w-full bg-white hover:bg-red-50 text-red-600 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] transition-all font-bold flex items-center justify-center gap-2"
-                                >
-                                    <DollarSign className="w-4 h-4" /> Sell Asset
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button
+                                        onClick={() => navigate(`/stock/${item.ticker}`)}
+                                        className="w-1/2 bg-white hover:bg-gray-50 text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] transition-all font-bold"
+                                    >
+                                        View Chart
+                                    </Button>
+                                    <Button
+                                        onClick={() => setSelectedSellTicker({ ticker: item.ticker, quantity: Number(item.quantity), price })}
+                                        className="w-1/2 bg-white hover:bg-red-50 text-red-600 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] transition-all font-bold flex items-center justify-center gap-1"
+                                    >
+                                        <DollarSign className="w-4 h-4" /> Sell
+                                    </Button>
+                                </div>
                             </Card.Content>
                         </Card>
                     );

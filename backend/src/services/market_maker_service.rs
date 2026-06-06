@@ -51,7 +51,7 @@ impl MarketMakerService {
     ) -> Result<Option<BigDecimal>, TradeError> {
         info!("get current price");
         let current_price_opt = sqlx::query(
-            "SELECT close FROM stock_prices WHERE ticker = 1 ORDER BY date DESC LIMIT 1",
+            "SELECT close FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1",
         )
         .bind(ticker)
         .fetch_optional(&self.db)
@@ -90,7 +90,10 @@ impl MarketMakerService {
         &self,
         ticker: String,
     ) -> Result<Vec<BigDecimal>, TradeError> {
-        let market_price = self.ticker_service.fetch_latest_price_ticker_from_db(&ticker).await?;
+        let market_price = self
+            .ticker_service
+            .fetch_latest_price_ticker_from_db(&ticker)
+            .await?;
         let current_price_opt = self.get_current_price(&ticker).await?;
         let start_price = match current_price_opt {
             Some(price) => price,

@@ -8,7 +8,7 @@ export enum LoanType {
 }
 
 export const requestLoan = async (loanType: LoanType) => {
-    const response = await axios.post(`api/loans/{loanType}`, {}, {
+    const response = await axios.post(`api/loans/${loanType}`, {}, {
 
     });
     return response.data;

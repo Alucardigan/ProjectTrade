@@ -40,7 +40,7 @@ impl TradeService {
 
     #[tracing::instrument(skip(self))]
     pub async fn get_order(&self, order_id: Uuid) -> Result<Order, TradeError> {
-        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = 1")
+        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1")
             .bind(order_id)
             .fetch_one(&self.db)
             .await
@@ -97,14 +97,14 @@ impl TradeService {
         }
         self.log_transaction(&order).await?;
         if fullfilment_quantity < order.quantity {
-            sqlx::query("UPDATE orders SET quantity = 2 WHERE order_id = 1")
+            sqlx::query("UPDATE orders SET quantity = $2 WHERE order_id = $1")
                 .bind(order_id)
                 .bind(order.quantity - fullfilment_quantity)
                 .execute(&self.db)
                 .await
                 .map_err(|e| TradeError::DatabaseError(e))?;
         } else {
-            sqlx::query("UPDATE orders SET status = 2 WHERE order_id = 1")
+            sqlx::query("UPDATE orders SET status = $2 WHERE order_id = $1")
                 .bind(order_id)
                 .bind(OrderStatus::Executed)
                 .execute(&self.db)
@@ -117,7 +117,7 @@ impl TradeService {
     #[tracing::instrument(skip(self))]
     pub async fn get_pending_orders(&self) -> Result<Vec<Order>, TradeError> {
         let rec = sqlx::query(
-            "SELECT * FROM orders WHERE status =1::order_status ORDER BY created_at ASC",
+            "SELECT * FROM orders WHERE status =$1::order_status ORDER BY created_at ASC",
         )
         .bind(OrderStatus::Pending.to_string())
         .fetch_all(&self.db)
@@ -173,7 +173,7 @@ impl TradeService {
     async fn log_transaction(&self, order: &Order) -> Result<(), TradeError> {
         sqlx::query(
             "INSERT INTO transactions (transaction_id, user_id, ticker, order_type, quantity, price_per_share) 
-            VALUES (1, 2, 3, 4, 5, 6)")
+            VALUES ($1, $2, $3, $4, $5, $6)")
             .bind(uuid::Uuid::new_v4())
             .bind(&order.user_id)
             .bind(&order.ticker)

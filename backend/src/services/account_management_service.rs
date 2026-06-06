@@ -17,7 +17,7 @@ impl AccountManagementService {
     }
     #[tracing::instrument(skip(self))]
     pub async fn get_user_balance(&self, user_id: Uuid) -> Result<BigDecimal, UserError> {
-        let rec = sqlx::query("SELECT available_balance FROM users WHERE user_id = 1")
+        let rec = sqlx::query("SELECT available_balance FROM users WHERE user_id = $1")
             .bind(user_id)
             .fetch_one(&self.db)
             .await?;
@@ -29,7 +29,7 @@ impl AccountManagementService {
         &self,
         user_id: Uuid,
     ) -> Result<Vec<Transaction>, UserError> {
-        let records = sqlx::query("SELECT * FROM transactions WHERE user_id = 1")
+        let records = sqlx::query("SELECT * FROM transactions WHERE user_id = $1")
             .bind(user_id)
             .fetch_all(&self.db)
             .await
@@ -61,7 +61,7 @@ impl AccountManagementService {
         tracing::debug!("Reserving funds {} for user {}", reserve_amount, user_id);
         //only available funds are deducted, balance is deducted from when the order is executed
         let rows_affected = sqlx::query(
-        "UPDATE users SET available_balance = available_balance - 1 WHERE user_id = 2 AND available_balance >= 1",
+        "UPDATE users SET available_balance = available_balance - $1 WHERE user_id = $2 AND available_balance >= $1",
         )
         .bind(reserve_amount)
         .bind(user_id)
@@ -86,7 +86,7 @@ impl AccountManagementService {
             return Err(TradeError::InvalidAmount);
         }
         let rows_affected = sqlx::query(
-            "UPDATE users SET balance = balance + 1, available_balance = available_balance + 1 WHERE user_id = 2",
+            "UPDATE users SET balance = balance + $1, available_balance = available_balance + $1 WHERE user_id = $2",
         )
         .bind(amount)
         .bind(user_id)
@@ -112,7 +112,7 @@ impl AccountManagementService {
         }
         //only need to deduct balance as reserve funds already deducts from available balance
         let rows_affected = sqlx::query(
-            "UPDATE users SET balance = balance - 1 WHERE user_id = 2 AND balance >= 1",
+            "UPDATE users SET balance = balance - $1 WHERE user_id = $2 AND balance >= $1",
         )
         .bind(amount)
         .bind(user_id)
@@ -127,7 +127,7 @@ impl AccountManagementService {
     }
     pub async fn reset_user_balance(&self, user_id: Uuid) -> Result<(), TradeError> {
         sqlx::query(
-            "UPDATE users SET balance = 100000, available_balance = 100000 WHERE user_id = 1",
+            "UPDATE users SET balance = 100000, available_balance = 100000 WHERE user_id = $1",
         )
         .bind(user_id)
         .execute(&self.db)

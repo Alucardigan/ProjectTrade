@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Text } from '@/components/retroui/Text';
 import { fetchPortfolioHistory } from '@/api/portfolio';
 
@@ -27,13 +27,21 @@ export const PortfolioChart = () => {
     : true;
 
   const color = isUp ? '#10b981' : '#ef4444';
-  const gradientId = `colorGradient_{isUp ? 'up' : 'down'}`;
+  const gradientId = `colorGradient_${isUp ? 'up' : 'down'}`;
 
   // Format data for recharts
-  const chartData = history?.map((d: any) => ({
+  let chartData = history?.map((d: any) => ({
     date: new Date(d.date).toLocaleDateString(),
     value: Number(d.total_value)
   })) || [];
+
+  // If there's only one data point (e.g. sparse mock data), duplicate it to draw a flat horizontal line
+  if (chartData.length === 1) {
+    chartData = [
+      { ...chartData[0], date: 'Start' },
+      { ...chartData[0], date: 'End' }
+    ];
+  }
 
   return (
     <div className="bg-white/80 backdrop-blur-md rounded-xl border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-6">
@@ -46,7 +54,7 @@ export const PortfolioChart = () => {
             <button
               key={tf.value}
               onClick={() => setTimeframe(tf.value)}
-              className={`px-3 py-1 text-sm font-bold rounded transition-all duration-200 {
+              className={`px-3 py-1 text-sm font-bold rounded transition-all duration-200 ${
                 timeframe === tf.value 
                   ? 'bg-black text-white shadow-sm' 
                   : 'text-gray-500 hover:text-black'
@@ -69,13 +77,7 @@ export const PortfolioChart = () => {
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={color} stopOpacity={0.4} />
-                  <stop offset="95%" stopColor={color} stopOpacity={0} />
-                </linearGradient>
-              </defs>
+            <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
               <XAxis
                 dataKey="date"
@@ -88,7 +90,7 @@ export const PortfolioChart = () => {
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 600 }}
-                tickFormatter={(val: number) => `{val}`}
+                tickFormatter={(val: number) => Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(val)}
                 domain={['auto', 'auto']}
               />
               <Tooltip
@@ -100,19 +102,19 @@ export const PortfolioChart = () => {
                   fontWeight: 'bold',
                 }}
                 itemStyle={{ color: '#000000', fontWeight: 'bold' }}
-                formatter={(value: number) => [`{value.toFixed(2)}`, 'Portfolio Value']}
+                formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Portfolio Value']}
                 labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
               />
-              <Area
+              <Line
                 type="monotone"
                 dataKey="value"
                 stroke={color}
                 strokeWidth={4}
-                fillOpacity={1}
-                fill={`url(#{gradientId})`}
+                dot={false}
+                activeDot={{ r: 8, strokeWidth: 0 }}
                 animationDuration={1000}
               />
-            </AreaChart>
+            </LineChart>
           </ResponsiveContainer>
         )}
       </div>
