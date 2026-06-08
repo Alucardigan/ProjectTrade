@@ -57,7 +57,7 @@ impl PortfolioManagementService {
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
 
-        // Step C: The Running Total Algorithm
+        // Step C: The Running Total Algorithm (Optimized with a cursor)
         let mut historical_values = Vec::new();
         let mut current_quantity = BigDecimal::from(0);
         let mut order_idx = 0;
@@ -112,29 +112,82 @@ impl PortfolioManagementService {
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
 
-        let mut all_points: std::collections::BTreeMap<DateTime<Utc>, BigDecimal> =
-            std::collections::BTreeMap::new();
-
+        let mut distinct_tickers_histories = Vec::new();
         for rec in distinct_tickers {
             let ticker: String = rec.get("ticker");
             let ticker_history = self
                 .get_stock_value_by_timeframe(user_id, timeframe, &ticker)
                 .await?;
-            for point in ticker_history {
-                let entry = all_points.entry(point.date).or_insert(BigDecimal::from(0));
-                *entry += point.total_value;
+            distinct_tickers_histories.push((ticker, ticker_history));
+        }
+
+        use chrono::Timelike;
+        let mut all_normalized_dates = std::collections::BTreeSet::new();
+
+        // Collect all unique normalized dates (set to midnight)
+        for (_, history) in &distinct_tickers_histories {
+            for point in history {
+                let normalized = point.date.with_hour(0).unwrap().with_minute(0).unwrap().with_second(0).unwrap().with_nanosecond(0).unwrap();
+                all_normalized_dates.insert(normalized);
             }
         }
 
-        // Add the current portfolio value as the very last data point
-        let current_total_value = self.get_total_portfolio_value(user_id).await.unwrap_or(BigDecimal::from(0));
-        all_points.insert(chrono::Utc::now(), current_total_value);
-
         let mut history = Vec::new();
-        for (date, total_value) in all_points {
-            history
-                .push(crate::models::portfolio_ticker::PortfolioHistoryPoint { date, total_value });
+        let mut last_known_values: std::collections::HashMap<String, BigDecimal> =
+            std::collections::HashMap::new();
+
+        // 1. Maintain a cursor (index) for each ticker's history so we don't start from 0 every day
+        let mut ticker_cursors: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for (ticker, _) in &distinct_tickers_histories {
+            ticker_cursors.insert(ticker.clone(), 0);
         }
+
+        // Forward fill algorithm (Optimized with cursors)
+        for date in all_normalized_dates {
+            let mut daily_total = BigDecimal::from(0);
+
+            for (ticker, t_history) in &distinct_tickers_histories {
+                let mut cursor = *ticker_cursors.get(ticker).unwrap_or(&0);
+
+                // Advance the cursor as long as the next point is on or before our global date
+                while cursor < t_history.len() {
+                    let point = &t_history[cursor];
+                    let normalized = point.date.with_hour(0).unwrap().with_minute(0).unwrap().with_second(0).unwrap().with_nanosecond(0).unwrap();
+                    
+                    if normalized <= date {
+                        // We found a valid point, update our last known value
+                        last_known_values.insert(ticker.clone(), point.total_value.clone());
+                        cursor += 1;
+                    } else {
+                        // The point is in the future, wait for the next global date
+                        break; 
+                    }
+                }
+
+                // Save the cursor back so we don't start from 0 next time
+                ticker_cursors.insert(ticker.clone(), cursor);
+
+                // Add the last known value of this ticker to the daily total (even if missing today)
+                if let Some(val) = last_known_values.get(ticker) {
+                    daily_total += val;
+                }
+            }
+
+            history.push(crate::models::portfolio_ticker::PortfolioHistoryPoint {
+                date,
+                total_value: daily_total,
+            });
+        }
+
+        // Add the current portfolio value as the very last data point to ensure accuracy to the millisecond
+        let current_total_value = self
+            .get_total_portfolio_value(user_id)
+            .await
+            .unwrap_or(BigDecimal::from(0));
+        history.push(crate::models::portfolio_ticker::PortfolioHistoryPoint {
+            date: chrono::Utc::now(),
+            total_value: current_total_value,
+        });
 
         Ok(history)
     }
