@@ -34,7 +34,7 @@ export const HoldingsGrid = ({ portfolio }: HoldingsGridProps) => {
                         <Card key={item.ticker} className="w-full bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 group">
                             <Card.Content className="p-6">
                                 <div className="flex justify-between items-start mb-4">
-                                    <div 
+                                    <div
                                         className="bg-gray-100 p-3 rounded-xl border-2 border-black group-hover:bg-yellow-100 transition-colors cursor-pointer hover:scale-105"
                                         onClick={() => navigate(`/stock/${item.ticker}`)}
                                         title={`View ${item.ticker} Chart`}
@@ -56,12 +56,12 @@ export const HoldingsGrid = ({ portfolio }: HoldingsGridProps) => {
                                     </div>
                                     <div className="flex justify-between items-center border-b-2 border-dashed border-gray-200 pb-2">
                                         <Text className="text-gray-500 text-sm font-bold">Current Price</Text>
-                                        <Text className="font-bold text-gray-900">{price.toFixed(2)}</Text>
+                                        <Text className="font-bold text-gray-900">${price.toFixed(2)}</Text>
                                     </div>
                                     <div className="flex justify-between items-center pt-1">
                                         <Text className="text-gray-500 text-sm font-bold">Total Value</Text>
                                         <Text className="font-black text-gray-900 text-lg">
-                                            {currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            ${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </Text>
                                     </div>
                                     <div className="flex justify-between items-center pt-1">

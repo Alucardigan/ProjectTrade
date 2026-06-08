@@ -172,12 +172,12 @@ const LoanPage = () => {
                                     <div className="h-4 bg-gray-200 rounded-full border-2 border-black overflow-hidden relative">
                                         <div
                                             className="h-full bg-green-500 transition-all duration-500 ease-out"
-                                            style={{ width: `{loanDetails.progress}%` }}
+                                            style={{ width: `${loanDetails.progress}%` }}
                                             title="Repaid Amount"
                                         ></div>
                                     </div>
                                     <Text className="text-xs text-gray-500 mt-2 text-right">
-                                        {(loanDetails.originalAmount - loanDetails.principal).toLocaleString(undefined, { minimumFractionDigits: 2 })} repaid of principal
+                                        ${(loanDetails.originalAmount - loanDetails.principal).toLocaleString(undefined, { minimumFractionDigits: 2 })} repaid of principal
                                     </Text>
                                 </div>
 

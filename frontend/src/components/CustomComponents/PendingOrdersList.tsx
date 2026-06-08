@@ -48,7 +48,7 @@ export const PendingOrdersList = ({ orders }: PendingOrdersListProps) => {
                                         <Text className="font-bold text-gray-700">{order.quantity}</Text>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                                        <Text className="font-bold text-gray-700">{Number(order.price_per_share).toFixed(2)}</Text>
+                                        <Text className="font-bold text-gray-700">${Number(order.price_per_share).toFixed(2)}</Text>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
                                         <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
