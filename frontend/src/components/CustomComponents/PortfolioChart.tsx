@@ -31,7 +31,7 @@ export const PortfolioChart = () => {
 
   // Format data for recharts
   let chartData = history?.map((d: any) => ({
-    date: new Date(d.date).toLocaleDateString(),
+    date: new Date(d.date).toLocaleDateString(undefined, { timeZone: 'UTC' }),
     value: Number(d.total_value)
   })) || [];
 
@@ -54,11 +54,10 @@ export const PortfolioChart = () => {
             <button
               key={tf.value}
               onClick={() => setTimeframe(tf.value)}
-              className={`px-3 py-1 text-sm font-bold rounded transition-all duration-200 ${
-                timeframe === tf.value 
-                  ? 'bg-black text-white shadow-sm' 
+              className={`px-3 py-1 text-sm font-bold rounded transition-all duration-200 ${timeframe === tf.value
+                  ? 'bg-black text-white shadow-sm'
                   : 'text-gray-500 hover:text-black'
-              }`}
+                }`}
             >
               {tf.label}
             </button>

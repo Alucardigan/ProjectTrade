@@ -127,7 +127,12 @@ impl PortfolioManagementService {
         // Collect all unique normalized dates (set to midnight)
         for (_, history) in &distinct_tickers_histories {
             for point in history {
-                let normalized = point.date.with_hour(0).unwrap().with_minute(0).unwrap().with_second(0).unwrap().with_nanosecond(0).unwrap();
+                let normalized = point
+                    .date
+                    .date_naive()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap()
+                    .and_utc();
                 all_normalized_dates.insert(normalized);
             }
         }
@@ -137,7 +142,8 @@ impl PortfolioManagementService {
             std::collections::HashMap::new();
 
         // 1. Maintain a cursor (index) for each ticker's history so we don't start from 0 every day
-        let mut ticker_cursors: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let mut ticker_cursors: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
         for (ticker, _) in &distinct_tickers_histories {
             ticker_cursors.insert(ticker.clone(), 0);
         }
@@ -152,15 +158,19 @@ impl PortfolioManagementService {
                 // Advance the cursor as long as the next point is on or before our global date
                 while cursor < t_history.len() {
                     let point = &t_history[cursor];
-                    let normalized = point.date.with_hour(0).unwrap().with_minute(0).unwrap().with_second(0).unwrap().with_nanosecond(0).unwrap();
-                    
+                    let normalized = point
+                        .date
+                        .date_naive()
+                        .and_hms_opt(0, 0, 0)
+                        .unwrap()
+                        .and_utc();
                     if normalized <= date {
                         // We found a valid point, update our last known value
                         last_known_values.insert(ticker.clone(), point.total_value.clone());
                         cursor += 1;
                     } else {
                         // The point is in the future, wait for the next global date
-                        break; 
+                        break;
                     }
                 }
 

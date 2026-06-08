@@ -13,56 +13,56 @@ import { OrderType } from '@/types/OrderType';
 import { TrendingUp, AlertCircle, ArrowRight, Activity, TrendingDown } from 'lucide-react';
 
 const TIMEFRAMES = [
-  { label: '1D', value: 'day' },
-  { label: '1M', value: 'month' },
-  { label: '6M', value: 'half_year' },
-  { label: '1Y', value: 'year' },
-  { label: '5Y', value: 'five_year' },
-  { label: 'ALL', value: 'all_years' }
+    { label: '1D', value: 'day' },
+    { label: '1M', value: 'month' },
+    { label: '6M', value: 'half_year' },
+    { label: '1Y', value: 'year' },
+    { label: '5Y', value: 'five_year' },
+    { label: 'ALL', value: 'all_years' }
 ];
 
 const Candlestick = (props: any) => {
-  const { x, y, width, height, payload } = props;
-  const { open, close, high, low } = payload;
-  
-  const isUp = close >= open;
-  const color = isUp ? '#10b981' : '#ef4444';
-  
-  if (high === low) {
-     return <line x1={x + width / 2} y1={y} x2={x + width / 2} y2={y + height} stroke={color} strokeWidth={2} />;
-  }
+    const { x, y, width, height, payload } = props;
+    const { open, close, high, low } = payload;
 
-  const openPixel = y + ((high - open) / (high - low)) * height;
-  const closePixel = y + ((high - close) / (high - low)) * height;
-  
-  const topBox = Math.min(openPixel, closePixel);
-  const bottomBox = Math.max(openPixel, closePixel);
-  const boxHeight = Math.max(bottomBox - topBox, 1);
-  
-  return (
-    <g>
-      <line x1={x + width / 2} y1={y} x2={x + width / 2} y2={y + height} stroke={color} strokeWidth={2} />
-      <rect x={x} y={topBox} width={width} height={boxHeight} fill={color} stroke={color} />
-    </g>
-  );
+    const isUp = close >= open;
+    const color = isUp ? '#10b981' : '#ef4444';
+
+    if (high === low) {
+        return <line x1={x + width / 2} y1={y} x2={x + width / 2} y2={y + height} stroke={color} strokeWidth={2} />;
+    }
+
+    const openPixel = y + ((high - open) / (high - low)) * height;
+    const closePixel = y + ((high - close) / (high - low)) * height;
+
+    const topBox = Math.min(openPixel, closePixel);
+    const bottomBox = Math.max(openPixel, closePixel);
+    const boxHeight = Math.max(bottomBox - topBox, 1);
+
+    return (
+        <g>
+            <line x1={x + width / 2} y1={y} x2={x + width / 2} y2={y + height} stroke={color} strokeWidth={2} />
+            <rect x={x} y={topBox} width={width} height={boxHeight} fill={color} stroke={color} />
+        </g>
+    );
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="bg-white border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-        <Text className="font-bold mb-2 text-gray-500">{label}</Text>
-        <div className="space-y-1">
-          <Text className="font-bold text-sm">Open: ${Number(data.open).toFixed(2)}</Text>
-          <Text className="font-bold text-sm">High: ${Number(data.high).toFixed(2)}</Text>
-          <Text className="font-bold text-sm">Low: ${Number(data.low).toFixed(2)}</Text>
-          <Text className="font-bold text-sm">Close: ${Number(data.close).toFixed(2)}</Text>
-        </div>
-      </div>
-    );
-  }
-  return null;
+    if (active && payload && payload.length) {
+        const data = payload[0].payload;
+        return (
+            <div className="bg-white border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <Text className="font-bold mb-2 text-gray-500">{label}</Text>
+                <div className="space-y-1">
+                    <Text className="font-bold text-sm">Open: ${Number(data.open).toFixed(2)}</Text>
+                    <Text className="font-bold text-sm">High: ${Number(data.high).toFixed(2)}</Text>
+                    <Text className="font-bold text-sm">Low: ${Number(data.low).toFixed(2)}</Text>
+                    <Text className="font-bold text-sm">Close: ${Number(data.close).toFixed(2)}</Text>
+                </div>
+            </div>
+        );
+    }
+    return null;
 };
 
 const StockPage = () => {
@@ -99,9 +99,9 @@ const StockPage = () => {
         const open = d.open != null ? Number(d.open) : close;
         const high = d.high != null ? Number(d.high) : close;
         const low = d.low != null ? Number(d.low) : close;
-        
+
         return {
-            date: new Date(d.date).toLocaleDateString(),
+            date: new Date(d.date).toLocaleDateString(undefined, { timeZone: 'UTC' }),
             open,
             close,
             high,
@@ -136,7 +136,7 @@ const StockPage = () => {
                 >
                     ← Back
                 </Button>
-                
+
                 <div className="flex items-end gap-4 mb-8">
                     <Text as="h1" className="text-5xl font-black text-gray-900 tracking-tight">{ticker}</Text>
                     <div className="flex items-center gap-2 mb-1">
@@ -158,19 +158,18 @@ const StockPage = () => {
                             <div className="flex justify-between items-center flex-wrap gap-4">
                                 <Text className="text-2xl font-black">Performance</Text>
                                 <div className="flex bg-gray-100 p-1 rounded-lg border-2 border-black overflow-x-auto">
-                                {TIMEFRAMES.map((tf) => (
-                                    <button
-                                        key={tf.value}
-                                        onClick={() => setTimeframe(tf.value)}
-                                        className={`px-3 py-1 text-sm font-bold rounded transition-all duration-200 ${
-                                            timeframe === tf.value 
-                                            ? 'bg-black text-white shadow-sm' 
-                                            : 'text-gray-500 hover:text-black'
-                                        }`}
-                                    >
-                                        {tf.label}
-                                    </button>
-                                ))}
+                                    {TIMEFRAMES.map((tf) => (
+                                        <button
+                                            key={tf.value}
+                                            onClick={() => setTimeframe(tf.value)}
+                                            className={`px-3 py-1 text-sm font-bold rounded transition-all duration-200 ${timeframe === tf.value
+                                                ? 'bg-black text-white shadow-sm'
+                                                : 'text-gray-500 hover:text-black'
+                                                }`}
+                                        >
+                                            {tf.label}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
 
@@ -230,7 +229,7 @@ const StockPage = () => {
                         <Card className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sticky top-6">
                             <Card.Content className="p-6 space-y-6">
                                 <Text as="h2" className="text-2xl font-black border-b-4 border-black pb-4">Trade {ticker}</Text>
-                                
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold uppercase tracking-wider text-gray-500">Shares</label>
                                     <input
@@ -259,7 +258,7 @@ const StockPage = () => {
 
                                 <Button
                                     onClick={handleBuy}
-                                    disabled={!quantity || mutation.isPending}
+                                    disabled={!quantity || Number(quantity) <= 0 || mutation.isPending}
                                     className="w-full py-6 text-xl bg-green-500 hover:bg-green-600 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {mutation.isPending ? "Processing..." : (
