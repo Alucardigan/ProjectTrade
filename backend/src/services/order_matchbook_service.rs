@@ -114,6 +114,20 @@ impl OrderMatchbookService {
         open_orders
     }
 
+    pub async fn remove_order(&self, ticker: &str, order_id: Uuid) {
+        let mut books = self.order_books.write().await;
+        if let Some(order_book) = books.get_mut(ticker) {
+            order_book.buys.retain(|_, orders| {
+                orders.retain(|o| o.order_id != order_id);
+                !orders.is_empty()
+            });
+            order_book.sells.retain(|_, orders| {
+                orders.retain(|o| o.order_id != order_id);
+                !orders.is_empty()
+            });
+        }
+    }
+
     pub fn create_worker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
         info!("Starting order processor thread");
         let order_books = Arc::clone(&self.order_books);
@@ -125,84 +139,93 @@ impl OrderMatchbookService {
             ));
             loop {
                 interval.tick().await;
-                let mut buy_ids: Vec<(Uuid, BigDecimal)> = Vec::new();
-                let mut sell_ids: Vec<(Uuid, BigDecimal)> = Vec::new();
-                {
-                    let books = order_books.read().await;
-                    info!("Are we even reading the same books? {}", books.len());
-                    for (_ticker, order_book) in books.iter() {
-                        info!("Processing orderbook for ticker {}", _ticker);
-                        if let Ok((best_buy, best_sell)) = order_book.get_best_sale() {
-                            if best_buy.price_per_share >= best_sell.price_per_share {
-                                let match_quantity = best_buy.quantity.min(best_sell.quantity);
-                                buy_ids.push((best_buy.order_id, match_quantity.clone()));
-                                sell_ids.push((best_sell.order_id, match_quantity));
-                            }
-                        }
-                    }
-                }
-                info!(
-                    "Found {} buy orders and {} sell orders",
-                    buy_ids.len(),
-                    sell_ids.len()
-                );
-                // This is currently N+1 and also non atomic. Refactor trade to get better perf
-                //execute orders
-                let mut successful_buys = HashMap::new();
-                let mut successful_sells = HashMap::new();
-                for (buy_id, match_quantity) in buy_ids {
-                    info!("Executing buy order for user {}", buy_id);
-                    match trade_service
-                        .execute_order(buy_id, match_quantity.clone())
-                        .await
+                loop {
+                    let mut buy_ids: Vec<(Uuid, BigDecimal, BigDecimal)> = Vec::new();
+                    let mut sell_ids: Vec<(Uuid, BigDecimal, BigDecimal)> = Vec::new();
                     {
-                        Ok(_) => {
-                            successful_buys.insert(buy_id, match_quantity);
-                            info!("Executed buy order for user {}", buy_id);
-                        }
-                        Err(e) => {
-                            warn!(error = ?e, "Failed to execute order");
-                        }
-                    }
-                }
-                for (sell_id, match_quantity) in sell_ids {
-                    match trade_service
-                        .execute_order(sell_id, match_quantity.clone())
-                        .await
-                    {
-                        Ok(_) => {
-                            successful_sells.insert(sell_id, match_quantity);
-                        }
-                        Err(e) => {
-                            warn!(error = ?e, "Failed to execute order");
-                        }
-                    }
-                }
-                /*
-                Why cant this be done in the Ok() section of the match?:
-                would have to acquire write lock everytime for every single match. Needlessly pointless
-                */
-                {
-                    let mut books = order_books.write().await;
-                    for (_ticker, order_book) in books.iter_mut() {
-                        order_book.buys.retain(|_, orders| {
-                            for order in orders.iter_mut() {
-                                if let Some(qty) = successful_buys.get(&order.order_id) {
-                                    order.quantity -= qty;
+                        let books = order_books.read().await;
+                        info!("Are we even reading the same books? {}", books.len());
+                        for (_ticker, order_book) in books.iter() {
+                            info!("Processing orderbook for ticker {}", _ticker);
+                            if let Ok((best_buy, best_sell)) = order_book.get_best_sale() {
+                                if best_buy.price_per_share >= best_sell.price_per_share {
+                                    let match_quantity = best_buy.quantity.min(best_sell.quantity);
+                                    let execution_price = best_sell.price_per_share.clone(); // Market price defined by the limit sell
+                                    buy_ids.push((best_buy.order_id, match_quantity.clone(), execution_price.clone()));
+                                    sell_ids.push((best_sell.order_id, match_quantity, execution_price));
                                 }
                             }
-                            orders.retain(|o| o.quantity > BigDecimal::from(0));
-                            !orders.is_empty()
-                        });
-                        order_book.sells.retain(|_, orders| {
-                            for order in orders.iter_mut() {
-                                if let Some(qty) = successful_sells.get(&order.order_id) {
-                                    order.quantity -= qty;
-                                }
+                        }
+                    }
+
+                    if buy_ids.is_empty() {
+                        break;
+                    }
+
+                    info!(
+                        "Found {} buy orders and {} sell orders",
+                        buy_ids.len(),
+                        sell_ids.len()
+                    );
+                    
+                    let mut successful_buys = HashMap::new();
+                    let mut successful_sells = HashMap::new();
+                    let mut failed_buys = Vec::new();
+                    let mut failed_sells = Vec::new();
+
+                    for (buy_id, match_quantity, execution_price) in buy_ids {
+                        info!("Executing buy order for user {}", buy_id);
+                        match trade_service
+                            .execute_order(buy_id, match_quantity.clone(), execution_price)
+                            .await
+                        {
+                            Ok(_) => {
+                                successful_buys.insert(buy_id, match_quantity);
+                                info!("Executed buy order for user {}", buy_id);
                             }
-                            orders.retain(|o| o.quantity > BigDecimal::from(0));
-                            !orders.is_empty()
-                        });
+                            Err(e) => {
+                                warn!(error = ?e, "Failed to execute order");
+                                failed_buys.push(buy_id);
+                            }
+                        }
+                    }
+                    for (sell_id, match_quantity, execution_price) in sell_ids {
+                        match trade_service
+                            .execute_order(sell_id, match_quantity.clone(), execution_price)
+                            .await
+                        {
+                            Ok(_) => {
+                                successful_sells.insert(sell_id, match_quantity);
+                            }
+                            Err(e) => {
+                                warn!(error = ?e, "Failed to execute order");
+                                failed_sells.push(sell_id);
+                            }
+                        }
+                    }
+                    
+                    {
+                        let mut books = order_books.write().await;
+                        for (_ticker, order_book) in books.iter_mut() {
+                            order_book.buys.retain(|_, orders| {
+                                for order in orders.iter_mut() {
+                                    if let Some(qty) = successful_buys.get(&order.order_id) {
+                                        order.quantity -= qty;
+                                    }
+                                }
+                                orders.retain(|o| o.quantity > BigDecimal::from(0) && !failed_buys.contains(&o.order_id));
+                                !orders.is_empty()
+                            });
+                            order_book.sells.retain(|_, orders| {
+                                for order in orders.iter_mut() {
+                                    if let Some(qty) = successful_sells.get(&order.order_id) {
+                                        order.quantity -= qty;
+                                    }
+                                }
+                                orders.retain(|o| o.quantity > BigDecimal::from(0) && !failed_sells.contains(&o.order_id));
+                                !orders.is_empty()
+                            });
+                        }
                     }
                 }
             }

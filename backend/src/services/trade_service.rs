@@ -60,6 +60,7 @@ impl TradeService {
         &self,
         order_id: Uuid,
         fullfilment_quantity: BigDecimal,
+        execution_price: BigDecimal,
     ) -> Result<(), TradeError> {
         let order = self.get_order(order_id).await?;
         //validation checks
@@ -71,7 +72,7 @@ impl TradeService {
             return Err(TradeError::InvalidAmount);
         }
         //TODO: refactor price getting here
-        let total_purchase_price = &order.price_per_share * &fullfilment_quantity;
+        let total_purchase_price = &execution_price * &fullfilment_quantity;
         match order.order_type {
             OrderType::Buy => {
                 self.account_management_service
@@ -95,7 +96,7 @@ impl TradeService {
                     .await?;
             }
         }
-        self.log_transaction(&order, &fullfilment_quantity).await?;
+        self.log_transaction(&order, &fullfilment_quantity, &execution_price).await?;
         if fullfilment_quantity < order.quantity {
             sqlx::query("UPDATE orders SET quantity = $2, status = $3 WHERE order_id = $1")
                 .bind(order_id)
@@ -172,7 +173,7 @@ impl TradeService {
     // }
 
     #[tracing::instrument(skip(self))]
-    async fn log_transaction(&self, order: &Order, fullfilment_quantity: &BigDecimal) -> Result<(), TradeError> {
+    async fn log_transaction(&self, order: &Order, fullfilment_quantity: &BigDecimal, execution_price: &BigDecimal) -> Result<(), TradeError> {
         sqlx::query(
             "INSERT INTO transactions (transaction_id, user_id, ticker, order_type, quantity, price_per_share) 
             VALUES ($1, $2, $3, $4, $5, $6)")
@@ -181,7 +182,7 @@ impl TradeService {
             .bind(&order.ticker)
             .bind(&order.order_type)
             .bind(fullfilment_quantity)
-            .bind(&order.price_per_share)
+            .bind(execution_price)
             .execute(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
