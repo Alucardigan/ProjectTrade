@@ -95,18 +95,20 @@ impl TradeService {
                     .await?;
             }
         }
-        self.log_transaction(&order).await?;
+        self.log_transaction(&order, &fullfilment_quantity).await?;
         if fullfilment_quantity < order.quantity {
-            sqlx::query("UPDATE orders SET quantity = $2 WHERE order_id = $1")
+            sqlx::query("UPDATE orders SET quantity = $2, status = $3 WHERE order_id = $1")
                 .bind(order_id)
-                .bind(order.quantity - fullfilment_quantity)
+                .bind(order.quantity.clone() - fullfilment_quantity.clone())
+                .bind(OrderStatus::Pending)
                 .execute(&self.db)
                 .await
                 .map_err(|e| TradeError::DatabaseError(e))?;
         } else {
-            sqlx::query("UPDATE orders SET status = $2 WHERE order_id = $1")
+            sqlx::query("UPDATE orders SET status = $2, quantity = $3 WHERE order_id = $1")
                 .bind(order_id)
                 .bind(OrderStatus::Executed)
+                .bind(BigDecimal::from(0))
                 .execute(&self.db)
                 .await
                 .map_err(|e| TradeError::DatabaseError(e))?;
@@ -170,7 +172,7 @@ impl TradeService {
     // }
 
     #[tracing::instrument(skip(self))]
-    async fn log_transaction(&self, order: &Order) -> Result<(), TradeError> {
+    async fn log_transaction(&self, order: &Order, fullfilment_quantity: &BigDecimal) -> Result<(), TradeError> {
         sqlx::query(
             "INSERT INTO transactions (transaction_id, user_id, ticker, order_type, quantity, price_per_share) 
             VALUES ($1, $2, $3, $4, $5, $6)")
@@ -178,7 +180,7 @@ impl TradeService {
             .bind(&order.user_id)
             .bind(&order.ticker)
             .bind(&order.order_type)
-            .bind(&order.quantity)
+            .bind(fullfilment_quantity)
             .bind(&order.price_per_share)
             .execute(&self.db)
             .await
