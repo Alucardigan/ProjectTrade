@@ -48,7 +48,7 @@ impl PortfolioManagementService {
         // Step B: Fetch all filled orders for this user and ticker
         let orders_rows = sqlx::query(
             "SELECT quantity, order_type, created_at FROM orders 
-             WHERE user_id = $1 AND ticker = $2 AND status = 'EXECUTED' 
+             WHERE user_id = $1 AND ticker = $2 AND status = 'Executed' 
              ORDER BY created_at ASC",
         )
         .bind(user_id)
