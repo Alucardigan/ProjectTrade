@@ -1,5 +1,6 @@
 import { Text } from "@/components/retroui/Text";
 import { PortfolioSummary } from "@/components/CustomComponents/PortfolioSummary";
+import { PortfolioChart } from "@/components/CustomComponents/PortfolioChart";
 import { HoldingsGrid } from "@/components/CustomComponents/HoldingsGrid";
 import { useMemo } from "react";
 import { Button } from "@/components/retroui/Button";
@@ -125,17 +126,24 @@ const PortfolioPage = () => {
                     </div>
                 </div>
 
-                {/* Summary Cards */}
-                <PortfolioSummary
-                    totalValue={totalValue}
-                    totalGain={totalGain}
-                    totalCost={totalCost}
-                    gainPercentage={gainPercentage}
-                    totalLiabilities={totalLiabilities}
-                />
+                <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    {/* Left Column: Chart and Holdings */}
+                    <div className="lg:col-span-2 xl:col-span-3 space-y-8">
+                        <PortfolioChart />
+                        <HoldingsGrid portfolio={activePortfolio.portfolio} />
+                    </div>
 
-                {/* Holdings List */}
-                <HoldingsGrid portfolio={activePortfolio.portfolio} />
+                    {/* Right Column: Summary Cards */}
+                    <div className="lg:col-span-1 xl:col-span-1">
+                        <PortfolioSummary
+                            totalValue={totalValue}
+                            totalGain={totalGain}
+                            totalCost={totalCost}
+                            gainPercentage={gainPercentage}
+                            totalLiabilities={totalLiabilities}
+                        />
+                    </div>
+                </div>
             </div>
         </div>
     );

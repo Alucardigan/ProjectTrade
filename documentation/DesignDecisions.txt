@@ -10,11 +10,11 @@ Order Flow:
 
     OMS:
 
-        Calls Market Data Service -> gets current AAPL price: $150.
+        Calls Market Data Service -> gets current AAPL price: 150.
 
-        Calculates reservation: 10 * $150 * 1.05 = $1575.
+        Calculates reservation: 10 * 150 * 1.05 = 1575.
 
-        Calls User Service -> reserve_funds(user_123, $1575).
+        Calls User Service -> reserve_funds(user_123, 1575).
 
         User Service updates PostgreSQL: available_cash = available_cash - 1575.
 
@@ -26,13 +26,13 @@ Order Flow:
 
         Polls Redis Stream, reads the message.
 
-        Fetches latest AAPL price from Redis Cache: $152.
+        Fetches latest AAPL price from Redis Cache: 152.
 
-        Calculates cost: 10 * $152 = $1520.
+        Calculates cost: 10 * 152 = 1520.
 
-        Final Check: $1520 <= $1575 (reserved amount) -> OK.
+        Final Check: 1520 <= 1575 (reserved amount) -> OK.
 
-        Calls User Service -> execute_trade(user_123, AAPL, +10 shares, -$1520 cash).
+        Calls User Service -> execute_trade(user_123, AAPL, +10 shares, -1520 cash).
 
         User Service updates PostgreSQL: cash_balance = cash_balance - 1520, available_cash = available_cash + 1575 - 1520 (releases hold, deducts actual cost).
 
@@ -56,11 +56,11 @@ Sell Order Flow:
 
         Polls Redis Stream, reads the message.
 
-        Fetches latest AAPL price from Redis Cache: $152.
+        Fetches latest AAPL price from Redis Cache: 152.
 
-        Calculates proceeds: 5 * $152 = $760.
+        Calculates proceeds: 5 * 152 = 760.
 
-        Calls User Service -> execute_trade(user_123, AAPL, -5 shares, +$760 cash).
+        Calls User Service -> execute_trade(user_123, AAPL, -5 shares, +760 cash).
 
         User Service updates PostgreSQL:
 

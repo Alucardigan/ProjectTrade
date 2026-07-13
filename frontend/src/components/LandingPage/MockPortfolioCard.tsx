@@ -20,7 +20,7 @@ export const MockPortfolioCard = () => {
                 <div className="flex justify-between items-end">
                     <div>
                         <Text className="text-xs font-bold text-gray-500 uppercase">Total Balance</Text>
-                        <Text className="text-4xl font-black">$124,592.45</Text>
+                        <Text className="text-4xl font-black">124,592.45</Text>
                     </div>
                     <Badge variant="success" className="border-2 border-black text-sm px-3 py-1">
                         +12.5%

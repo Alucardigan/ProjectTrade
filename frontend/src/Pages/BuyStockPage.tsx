@@ -62,7 +62,7 @@ const BuyStockPage = () => {
         if (!ticker || !quantity) return;
 
         mutation.mutate({
-            symbol: ticker,
+            ticker: ticker,
             quantity: Number(quantity),
             order_type: OrderType.Buy,
             price_buffer: 0
@@ -106,7 +106,7 @@ const BuyStockPage = () => {
                                     <Badge variant="success" className="border-2 border-black">
                                         <TrendingUp className="w-3 h-3 mr-1" /> Live Price
                                     </Badge>
-                                    <Text className="font-mono font-bold text-lg">${estimatedPrice.toFixed(2)}</Text>
+                                    <Text className="font-mono font-bold text-lg">{estimatedPrice.toFixed(2)}</Text>
                                 </div>
                             )}
                         </div>
@@ -130,7 +130,7 @@ const BuyStockPage = () => {
                         <div className="bg-blue-50 p-6 rounded border-2 border-black border-dashed">
                             <div className="flex justify-between items-center mb-2">
                                 <Text className="text-gray-600 font-medium">Estimated Price</Text>
-                                <Text className="font-bold">${estimatedPrice ? estimatedPrice.toFixed(2) : "0.00"}</Text>
+                                <Text className="font-bold">{estimatedPrice ? estimatedPrice.toFixed(2) : "0.00"}</Text>
                             </div>
                             <div className="flex justify-between items-center mb-4">
                                 <Text className="text-gray-600 font-medium">Quantity</Text>
@@ -140,7 +140,7 @@ const BuyStockPage = () => {
                             <div className="flex justify-between items-end">
                                 <Text className="text-lg font-bold uppercase">Total Cost</Text>
                                 <Text className="text-3xl font-black text-blue-600">
-                                    ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </Text>
                             </div>
                         </div>
@@ -189,7 +189,7 @@ const BuyStockPage = () => {
                                         <Text className="text-gray-500 font-medium text-xs uppercase tracking-wide">{rec.name}</Text>
                                     </div>
                                     <div className="text-right">
-                                        <Text className="font-bold text-lg">${rec.price.toFixed(2)}</Text>
+                                        <Text className="font-bold text-lg">{rec.price.toFixed(2)}</Text>
                                         <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Select</div>
                                     </div>
                                 </Card.Content>

@@ -5,6 +5,7 @@ import PortfolioPage from './Pages/PortfolioPage';
 import BuyStockPage from './Pages/BuyStockPage';
 import OrderHistoryPage from './Pages/OrderHistoryPage';
 import LoanPage from './Pages/LoanPage';
+import StockPage from './Pages/StockPage';
 import './App.css';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
         <Route path="/buy" element={<BuyStockPage />} />
         <Route path="/orders" element={<OrderHistoryPage />} />
         <Route path="/loans" element={<LoanPage />} />
+        <Route path="/stock/:ticker" element={<StockPage />} />
       </Routes>
     </Router>
   );

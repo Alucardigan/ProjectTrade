@@ -1,6 +1,6 @@
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Clone)]
 pub struct Ticker {
@@ -11,4 +11,15 @@ pub struct Ticker {
     pub open: Option<BigDecimal>,
     pub high: Option<BigDecimal>,
     pub low: Option<BigDecimal>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum TimeFrame {
+    Day,
+    Month,
+    HalfYear,
+    Year,
+    FiveYear,
+    AllYears,
 }

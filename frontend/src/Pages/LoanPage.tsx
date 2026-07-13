@@ -146,15 +146,15 @@ const LoanPage = () => {
                                     <div>
                                         <Text className="text-gray-500 font-bold uppercase tracking-wider text-sm">Total Outstanding Balance</Text>
                                         <Text as="h2" className="text-5xl font-black text-gray-900 mt-2">
-                                            ${loanDetails.totalDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            {loanDetails.totalDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </Text>
                                         <div className="flex flex-col gap-1 mt-2 text-sm font-medium text-gray-600">
                                             <div className="flex gap-4">
-                                                <span>Principal: ${loanDetails.principal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                                <span className="text-red-600">+ Interest: ${loanDetails.accruedInterest.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                <span>Principal: {loanDetails.principal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                <span className="text-red-600">+ Interest: {loanDetails.accruedInterest.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                             </div>
                                             <div className="text-gray-400">
-                                                Original Loan: ${loanDetails.originalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                Original Loan: {loanDetails.originalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                             </div>
                                         </div>
                                     </div>
@@ -187,7 +187,7 @@ const LoanPage = () => {
                                     <div className="flex flex-col md:flex-row gap-4">
                                         <div className="flex-1 relative">
                                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <span className="text-gray-500 font-bold">$</span>
+                                                <span className="text-gray-500 font-bold"></span>
                                             </div>
                                             <input
                                                 type="number"
@@ -238,7 +238,7 @@ const LoanPage = () => {
                                         <Banknote className="w-5 h-5 text-gray-500" />
                                         <Text className="font-bold text-gray-700">Principal</Text>
                                     </div>
-                                    <Text className="font-black text-2xl">$100,000</Text>
+                                    <Text className="font-black text-2xl">100,000</Text>
                                 </div>
                                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded border-2 border-gray-200">
                                     <div className="flex items-center gap-2">
@@ -276,7 +276,7 @@ const LoanPage = () => {
                                         <Banknote className="w-5 h-5 text-gray-400" />
                                         <Text className="font-bold text-gray-300">Principal</Text>
                                     </div>
-                                    <Text className="font-black text-2xl text-yellow-400">$1,000,000</Text>
+                                    <Text className="font-black text-2xl text-yellow-400">1,000,000</Text>
                                 </div>
                                 <div className="flex items-center justify-between p-3 bg-gray-800 rounded border-2 border-gray-700">
                                     <div className="flex items-center gap-2">

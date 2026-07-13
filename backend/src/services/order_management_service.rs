@@ -70,7 +70,12 @@ impl OrderManagementService {
         //price calculation
         let price_per_share = match price_per_share {
             Some(price) => price,
-            None => self.trade_service.fetch_ticker_from_db(ticker).await?.close,
+            None => {
+                self.trade_service
+                    .fetch_latest_price_ticker_from_db(ticker)
+                    .await?
+                    .close
+            }
         };
         let total_purchase_price = &price_per_share * &quantity;
         match order_type {
@@ -153,6 +158,7 @@ impl OrderManagementService {
         let order_status_str: OrderStatus = rec
             .try_get("status")
             .map_err(|_| TradeError::InvalidOrderStatus)?;
+        let ticker: String = rec.try_get("ticker").map_err(|_| TradeError::DatabaseError(sqlx::Error::RowNotFound))?;
         //if order is already cancelled, no need to cancel
         if order_status_str == OrderStatus::Cancelled {
             return Ok(());
@@ -162,6 +168,8 @@ impl OrderManagementService {
             .execute(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
+        
+        self.order_matchbook_service.remove_order(&ticker, order_id).await;
         Ok(())
     }
 
@@ -211,11 +219,16 @@ impl OrderManagementService {
     }
 
     pub async fn cancel_all_orders(&self, user_id: Uuid) -> Result<(), TradeError> {
+        let pending = self.get_pending_orders(user_id).await?;
         sqlx::query("UPDATE orders SET status = 'Cancelled' WHERE user_id = $1")
             .bind(user_id)
             .execute(&self.db)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
+
+        for order in pending {
+            self.order_matchbook_service.remove_order(&order.ticker, order.order_id).await;
+        }
         Ok(())
     }
 }
