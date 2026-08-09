@@ -28,7 +28,11 @@ async fn test_add_order_and_get_best_sale() {
     // We can try to use `sqlx::PgPool::connect_lazy` which doesn't check connection immediately.
 
     let db = PgPool::connect_lazy("postgres://localhost/dummy").unwrap();
-    let service = OrderMatchbookService::new(db);
+    let ticker_service = std::sync::Arc::new(backend::services::ticker_service::TickerService::new("mock", db.clone()));
+    let account_service = std::sync::Arc::new(backend::services::account_management_service::AccountManagementService::new(db.clone()));
+    let portfolio_service = std::sync::Arc::new(backend::services::portfolio_management_service::PortfolioManagementService::new(db.clone(), ticker_service.clone()));
+    let trade_service = std::sync::Arc::new(backend::services::trade_service::TradeService::new(db.clone(), ticker_service.clone(), account_service.clone(), portfolio_service.clone()));
+    let service = OrderMatchbookService::new(db.clone(), trade_service, ticker_service);
 
     let ticker = "AAPL";
 
@@ -52,17 +56,18 @@ async fn test_add_order_and_get_best_sale() {
 
     let (best_buy, best_sell) = service.get_best_sale(ticker).await.unwrap();
 
-    assert!(best_buy.is_some());
-    assert!(best_sell.is_some());
-
-    assert_eq!(best_buy.unwrap().price_per_share, buy2.price_per_share);
-    assert_eq!(best_sell.unwrap().price_per_share, sell2.price_per_share);
+    assert_eq!(best_buy.price_per_share, buy2.price_per_share);
+    assert_eq!(best_sell.price_per_share, sell2.price_per_share);
 }
 
 #[tokio::test]
 async fn test_empty_book() {
     let db = PgPool::connect_lazy("postgres://localhost/dummy").unwrap();
-    let service = OrderMatchbookService::new(db);
+    let ticker_service = std::sync::Arc::new(backend::services::ticker_service::TickerService::new("mock", db.clone()));
+    let account_service = std::sync::Arc::new(backend::services::account_management_service::AccountManagementService::new(db.clone()));
+    let portfolio_service = std::sync::Arc::new(backend::services::portfolio_management_service::PortfolioManagementService::new(db.clone(), ticker_service.clone()));
+    let trade_service = std::sync::Arc::new(backend::services::trade_service::TradeService::new(db.clone(), ticker_service.clone(), account_service.clone(), portfolio_service.clone()));
+    let service = OrderMatchbookService::new(db.clone(), trade_service, ticker_service);
     // Expect error because book doesn't exist
     let result = service.get_best_sale("UNKNOWN").await;
     assert!(result.is_err());

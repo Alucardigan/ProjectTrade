@@ -114,6 +114,15 @@ impl OrderMatchbookService {
         open_orders
     }
 
+    pub async fn get_best_sale(&self, ticker: &str) -> Result<(Order, Order), TradeError> {
+        let books = self.order_books.read().await;
+        if let Some(book) = books.get(ticker) {
+            book.get_best_sale()
+        } else {
+            Err(TradeError::NoMatchForOrder)
+        }
+    }
+
     pub async fn remove_order(&self, ticker: &str, order_id: Uuid) {
         let mut books = self.order_books.write().await;
         if let Some(order_book) = books.get_mut(ticker) {
