@@ -68,7 +68,7 @@ impl TradeService {
             warn!("Order is not in pending state: {}", order.status);
             return Err(TradeError::InvalidOrderStatus);
         }
-        if order.quantity < BigDecimal::from(0) && order.quantity < fullfilment_quantity {
+        if order.quantity < BigDecimal::from(0) || order.quantity < fullfilment_quantity {
             return Err(TradeError::InvalidAmount);
         }
         //TODO: refactor price getting here
