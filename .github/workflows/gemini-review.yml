@@ -21,7 +21,7 @@ jobs:
         uses: sshnaidm/gemini-code-review-action@v2
         with:
           gemini-key: ${{ secrets.GEMINI_API_KEY }}
-          model: "gemini-1.5-flash-latest" 
+          model: "gemini-1.5-pro" 
           context-lines: 10
           prompt: |
             You are a strict Staff Software Engineer reviewing a Rust codebase. 
