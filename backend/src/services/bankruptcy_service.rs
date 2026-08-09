@@ -77,20 +77,9 @@ impl BankruptcyService {
                         .reset_user_balance(user_id)
                         .await?;
                     //liquidate portfolio
-                    let user_portfolio = self
-                        .portfolio_management_service
-                        .get_portfolio(user_id)
+                    self.portfolio_management_service
+                        .clear_portfolio(user_id)
                         .await?;
-                    for portfolio_item in user_portfolio {
-                        self.portfolio_management_service
-                            .remove_from_portfolio(
-                                &self.portfolio_management_service.db,
-                                portfolio_item.user_id,
-                                &portfolio_item.ticker,
-                                &portfolio_item.quantity,
-                            )
-                            .await?;
-                    }
                     //cancel all orders from the user
                     self.order_management_service
                         .cancel_all_orders(user_id)

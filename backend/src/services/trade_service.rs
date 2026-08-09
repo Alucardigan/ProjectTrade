@@ -62,7 +62,24 @@ impl TradeService {
         fullfilment_quantity: BigDecimal,
         execution_price: BigDecimal,
     ) -> Result<(), TradeError> {
-        let order = self.get_order(order_id).await?;
+        let mut tx = self.db.begin().await.map_err(|e| TradeError::DatabaseError(e))?;
+
+        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1 FOR UPDATE")
+            .bind(order_id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| TradeError::DatabaseError(e))?;
+
+        let order = Order {
+            order_id: rec.try_get("order_id")?,
+            user_id: rec.try_get("user_id")?,
+            ticker: rec.try_get("ticker")?,
+            quantity: rec.try_get("quantity")?,
+            price_per_share: rec.try_get("price_per_share")?,
+            order_type: rec.try_get("order_type")?,
+            status: rec.try_get("status")?,
+        };
+
         //validation checks
         if order.status != OrderStatus::Pending {
             warn!("Order is not in pending state: {}", order.status);
@@ -71,8 +88,6 @@ impl TradeService {
         if order.quantity < BigDecimal::from(0) || order.quantity < fullfilment_quantity {
             return Err(TradeError::InvalidAmount);
         }
-        
-        let mut tx = self.db.begin().await.map_err(|e| TradeError::DatabaseError(e))?;
 
         //TODO: refactor price getting here
         let total_purchase_price = &execution_price * &fullfilment_quantity;
@@ -86,14 +101,14 @@ impl TradeService {
                         &mut *tx,
                         order.user_id,
                         &order.ticker,
-                        &order.quantity,
+                        &fullfilment_quantity,
                         &total_purchase_price,
                     )
                     .await?;
             }
             OrderType::Sell => {
                 self.portfolio_management_service
-                    .remove_from_portfolio(&mut *tx, order.user_id, &order.ticker, &order.quantity)
+                    .remove_from_portfolio(&mut *tx, order.user_id, &order.ticker, &fullfilment_quantity)
                     .await?;
                 self.account_management_service
                     .add_user_balance(&mut *tx, order.user_id, &total_purchase_price)
