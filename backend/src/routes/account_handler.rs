@@ -50,7 +50,7 @@ pub async fn add_to_user_balance(
 ) -> Result<(), ApiError> {
     app_state
         .account_management_service
-        .add_user_balance(user_id, &request_body.amount)
+        .add_user_balance(&app_state.account_management_service.db, user_id, &request_body.amount)
         .await?;
     Ok(())
 }
@@ -62,7 +62,7 @@ pub async fn withdraw_funds(
 ) -> Result<(), ApiError> {
     app_state
         .account_management_service
-        .deduct_user_balance(user_id, &request_body.amount)
+        .deduct_user_balance(&app_state.account_management_service.db, user_id, &request_body.amount)
         .await?;
     Ok(())
 }

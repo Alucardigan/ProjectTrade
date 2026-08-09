@@ -76,7 +76,7 @@ impl LoanService {
             .await
             .map_err(|e| UserError::DatabaseError(e))?;
         self.account_management_service
-            .add_user_balance(user_id, &loan.principal)
+            .add_user_balance(&self.db, user_id, &loan.principal)
             .await?;
         Ok(())
     }
@@ -119,10 +119,10 @@ impl LoanService {
         tracing::info!("Actual payment amount: {}", acutal_payment_amount);
         //reserve and remove from funds
         self.account_management_service
-            .reserve_funds(user_id, &acutal_payment_amount)
+            .reserve_funds(&self.db, user_id, &acutal_payment_amount)
             .await?;
         self.account_management_service
-            .deduct_user_balance(user_id, &acutal_payment_amount)
+            .deduct_user_balance(&self.db, user_id, &acutal_payment_amount)
             .await?;
 
         //pay the accrued interest first

@@ -49,12 +49,16 @@ impl AccountManagementService {
         Ok(transactions)
     }
 
-    #[tracing::instrument(skip(self))]
-    pub async fn reserve_funds(
+    #[tracing::instrument(skip(self, executor))]
+    pub async fn reserve_funds<'c, E>(
         &self,
+        executor: E,
         user_id: Uuid,
         reserve_amount: &BigDecimal,
-    ) -> Result<(), TradeError> {
+    ) -> Result<(), TradeError>
+    where
+        E: sqlx::Executor<'c, Database = sqlx::Postgres>,
+    {
         if reserve_amount <= &BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
@@ -65,7 +69,7 @@ impl AccountManagementService {
         )
         .bind(reserve_amount)
         .bind(user_id)
-        .execute(&self.db)
+        .execute(executor)
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?
         .rows_affected();
@@ -76,12 +80,16 @@ impl AccountManagementService {
         }
     }
 
-    #[tracing::instrument(skip(self))]
-    pub async fn add_user_balance(
+    #[tracing::instrument(skip(self, executor))]
+    pub async fn add_user_balance<'c, E>(
         &self,
+        executor: E,
         user_id: Uuid,
         amount: &BigDecimal,
-    ) -> Result<(), TradeError> {
+    ) -> Result<(), TradeError>
+    where
+        E: sqlx::Executor<'c, Database = sqlx::Postgres>,
+    {
         if amount <= &BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
@@ -90,7 +98,7 @@ impl AccountManagementService {
         )
         .bind(amount)
         .bind(user_id)
-        .execute(&self.db)
+        .execute(executor)
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?
         .rows_affected();
@@ -101,12 +109,16 @@ impl AccountManagementService {
         }
     }
 
-    #[tracing::instrument(skip(self))]
-    pub async fn deduct_user_balance(
+    #[tracing::instrument(skip(self, executor))]
+    pub async fn deduct_user_balance<'c, E>(
         &self,
+        executor: E,
         user_id: Uuid,
         amount: &BigDecimal,
-    ) -> Result<(), TradeError> {
+    ) -> Result<(), TradeError>
+    where
+        E: sqlx::Executor<'c, Database = sqlx::Postgres>,
+    {
         if amount <= &BigDecimal::zero() {
             return Err(TradeError::InvalidAmount);
         }
@@ -116,7 +128,7 @@ impl AccountManagementService {
         )
         .bind(amount)
         .bind(user_id)
-        .execute(&self.db)
+        .execute(executor)
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         if rows_affected.rows_affected() > 0 {

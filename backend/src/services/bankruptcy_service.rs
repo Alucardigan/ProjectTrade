@@ -84,6 +84,7 @@ impl BankruptcyService {
                     for portfolio_item in user_portfolio {
                         self.portfolio_management_service
                             .remove_from_portfolio(
+                                &self.portfolio_management_service.db,
                                 portfolio_item.user_id,
                                 &portfolio_item.ticker,
                                 &portfolio_item.quantity,
