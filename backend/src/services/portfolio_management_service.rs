@@ -249,14 +249,18 @@ impl PortfolioManagementService {
         Ok(rec.get("quantity"))
     }
 
-    #[tracing::instrument(skip(self))]
-    pub async fn add_to_portfolio(
+    #[tracing::instrument(skip(self, executor))]
+    pub async fn add_to_portfolio<'c, E>(
         &self,
+        executor: E,
         user_id: Uuid,
         ticker: &str,
         quantity: &BigDecimal,
         total_money_spent: &BigDecimal,
-    ) -> Result<(), TradeError> {
+    ) -> Result<(), TradeError>
+    where
+        E: sqlx::Executor<'c, Database = sqlx::Postgres>,
+    {
         let portfolio_id = Uuid::new_v4();
         let _rec = sqlx::query(
             "INSERT INTO portfolio (portfolio_id, user_id, ticker, quantity, total_money_spent) VALUES ($1, $2, $3, $4, $5)
@@ -267,23 +271,27 @@ impl PortfolioManagementService {
         .bind(ticker)
         .bind(quantity)
         .bind(total_money_spent)
-        .execute(&self.db)
+        .execute(executor)
         .await
         .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub async fn remove_from_portfolio(
+    #[tracing::instrument(skip(self, executor))]
+    pub async fn remove_from_portfolio<'c, E>(
         &self,
+        executor: &mut E,
         user_id: Uuid,
         ticker: &str,
         quantity: &BigDecimal,
-    ) -> Result<(), TradeError> {
+    ) -> Result<(), TradeError>
+    where
+        for<'q> &'q mut E: sqlx::Executor<'q, Database = sqlx::Postgres>,
+    {
         let get_rec = sqlx::query("SELECT * FROM portfolio WHERE user_id = $1 AND ticker = $2")
             .bind(user_id)
             .bind(ticker)
-            .fetch_one(&self.db)
+            .fetch_one(&mut *executor)
             .await
             .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         if get_rec.is_empty() {
@@ -297,7 +305,7 @@ impl PortfolioManagementService {
             sqlx::query("DELETE FROM portfolio WHERE user_id = $1 AND ticker = $2")
                 .bind(user_id)
                 .bind(ticker)
-                .execute(&self.db)
+                .execute(&mut *executor)
                 .await
                 .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         } else {
@@ -307,10 +315,20 @@ impl PortfolioManagementService {
             .bind(user_id)
             .bind(ticker)
             .bind(quantity)
-            .execute(&self.db)
+            .execute(&mut *executor)
             .await
             .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         }
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn clear_portfolio(&self, user_id: Uuid) -> Result<(), TradeError> {
+        sqlx::query("DELETE FROM portfolio WHERE user_id = $1")
+            .bind(user_id)
+            .execute(&self.db)
+            .await
+            .map_err(|e| TradeError::UserError(UserError::DatabaseError(e)))?;
         Ok(())
     }
 }

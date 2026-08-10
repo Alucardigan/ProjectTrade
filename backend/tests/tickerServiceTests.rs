@@ -10,8 +10,6 @@ async fn test_search_symbol_mock() {
         .expect("Failed to connect to DB");
     let service = TickerService::new("mock", pool);
 
-    let ticker = service.search_symbol("AAPL").await;
-    print!("{}", ticker.symbol);
-    assert_eq!(ticker.symbol, "AAPL");
-    assert_eq!(ticker.trend.len(), 5);
+    let ticker = service.fetch_ticker_from_api("AAPL").await.unwrap();
+    assert_eq!(ticker.ticker, "AAPL");
 }

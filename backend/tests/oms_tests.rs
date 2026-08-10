@@ -38,12 +38,24 @@ async fn test_order_placement() {
         auth_client,
     ));
 
+    let order_matchbook_service = Arc::new(backend::services::order_matchbook_service::OrderMatchbookService::new(
+        pool.clone(),
+        Arc::new(backend::services::trade_service::TradeService::new(
+            pool.clone(),
+            ticker_service.clone(),
+            account_service.clone(),
+            portfolio_service.clone(),
+        )),
+        ticker_service.clone(),
+    ));
+
     let oms = OrderManagementService::new(
         pool.clone(),
         user_service.clone(),
         ticker_service.clone(),
         account_service.clone(),
         portfolio_service.clone(),
+        order_matchbook_service,
     );
 
     // Create a test user
@@ -69,6 +81,7 @@ async fn test_order_placement() {
             quantity.clone(),
             OrderType::Buy,
             price_buffer,
+            None,
         )
         .await;
     assert!(order.is_ok());

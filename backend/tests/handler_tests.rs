@@ -21,14 +21,16 @@ async fn setup_app() -> axum::Router {
             return create_router(AppState::new(
                 PgPool::connect_lazy(&db_url).unwrap(),
                 "mock",
+                uuid::Uuid::new_v4(),
             ))
             .with_state(AppState::new(
                 PgPool::connect_lazy(&db_url).unwrap(),
                 "mock",
+                uuid::Uuid::new_v4(),
             ))
         }
     };
-    let app_state = AppState::new(pool, "mock");
+    let app_state = AppState::new(pool, "mock", uuid::Uuid::new_v4());
     create_router(app_state.clone()).with_state(app_state)
 }
 

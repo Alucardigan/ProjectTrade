@@ -62,47 +62,66 @@ impl TradeService {
         fullfilment_quantity: BigDecimal,
         execution_price: BigDecimal,
     ) -> Result<(), TradeError> {
-        let order = self.get_order(order_id).await?;
+        let mut tx = self.db.begin().await.map_err(|e| TradeError::DatabaseError(e))?;
+
+        let rec = sqlx::query("SELECT * FROM orders WHERE order_id = $1 FOR UPDATE")
+            .bind(order_id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| TradeError::DatabaseError(e))?;
+
+        let order = Order {
+            order_id: rec.try_get("order_id")?,
+            user_id: rec.try_get("user_id")?,
+            ticker: rec.try_get("ticker")?,
+            quantity: rec.try_get("quantity")?,
+            price_per_share: rec.try_get("price_per_share")?,
+            order_type: rec.try_get("order_type")?,
+            status: rec.try_get("status")?,
+        };
+
         //validation checks
         if order.status != OrderStatus::Pending {
             warn!("Order is not in pending state: {}", order.status);
             return Err(TradeError::InvalidOrderStatus);
         }
-        if order.quantity < BigDecimal::from(0) && order.quantity < fullfilment_quantity {
+        if order.quantity < BigDecimal::from(0) || order.quantity < fullfilment_quantity {
             return Err(TradeError::InvalidAmount);
         }
+
         //TODO: refactor price getting here
         let total_purchase_price = &execution_price * &fullfilment_quantity;
         match order.order_type {
             OrderType::Buy => {
                 self.account_management_service
-                    .deduct_user_balance(order.user_id, &total_purchase_price)
+                    .deduct_user_balance(&mut *tx, order.user_id, &total_purchase_price)
                     .await?;
                 self.portfolio_management_service
                     .add_to_portfolio(
+                        &mut *tx,
                         order.user_id,
                         &order.ticker,
-                        &order.quantity,
+                        &fullfilment_quantity,
                         &total_purchase_price,
                     )
                     .await?;
             }
             OrderType::Sell => {
                 self.portfolio_management_service
-                    .remove_from_portfolio(order.user_id, &order.ticker, &order.quantity)
+                    .remove_from_portfolio(&mut *tx, order.user_id, &order.ticker, &fullfilment_quantity)
                     .await?;
                 self.account_management_service
-                    .add_user_balance(order.user_id, &total_purchase_price)
+                    .add_user_balance(&mut *tx, order.user_id, &total_purchase_price)
                     .await?;
             }
         }
-        self.log_transaction(&order, &fullfilment_quantity, &execution_price).await?;
+        self.log_transaction(&mut *tx, &order, &fullfilment_quantity, &execution_price).await?;
         if fullfilment_quantity < order.quantity {
             sqlx::query("UPDATE orders SET quantity = $2, status = $3 WHERE order_id = $1")
                 .bind(order_id)
                 .bind(order.quantity.clone() - fullfilment_quantity.clone())
                 .bind(OrderStatus::Pending)
-                .execute(&self.db)
+                .execute(&mut *tx)
                 .await
                 .map_err(|e| TradeError::DatabaseError(e))?;
         } else {
@@ -110,10 +129,11 @@ impl TradeService {
                 .bind(order_id)
                 .bind(OrderStatus::Executed)
                 .bind(BigDecimal::from(0))
-                .execute(&self.db)
+                .execute(&mut *tx)
                 .await
                 .map_err(|e| TradeError::DatabaseError(e))?;
         }
+        tx.commit().await.map_err(|e| TradeError::DatabaseError(e))?;
         Ok(())
     }
 
@@ -172,8 +192,11 @@ impl TradeService {
     //     })
     // }
 
-    #[tracing::instrument(skip(self))]
-    async fn log_transaction(&self, order: &Order, fullfilment_quantity: &BigDecimal, execution_price: &BigDecimal) -> Result<(), TradeError> {
+    #[tracing::instrument(skip(self, executor))]
+    async fn log_transaction<'c, E>(&self, executor: E, order: &Order, fullfilment_quantity: &BigDecimal, execution_price: &BigDecimal) -> Result<(), TradeError> 
+    where
+        E: sqlx::Executor<'c, Database = sqlx::Postgres>,
+    {
         sqlx::query(
             "INSERT INTO transactions (transaction_id, user_id, ticker, order_type, quantity, price_per_share) 
             VALUES ($1, $2, $3, $4, $5, $6)")
@@ -183,7 +206,7 @@ impl TradeService {
             .bind(&order.order_type)
             .bind(fullfilment_quantity)
             .bind(execution_price)
-            .execute(&self.db)
+            .execute(executor)
             .await
             .map_err(|e| TradeError::DatabaseError(e))?;
         Ok(())
