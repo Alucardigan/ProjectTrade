@@ -61,20 +61,21 @@ jobs:
 
           prompt = "Analyze this code diff. First, output a mutated version of the changed code that introduces a subtle logic bug. Second, generate a Just-in-Time (JiT) Rust unit test specifically designed to catch this new bug. Keep the output brief and formatted in Markdown.\n\nDiff:\n" + diff
 
-          # Defaulting to OpenAI API format (gpt-4o). 
-          # Modify the URL and JSON payload if you intend to use Claude or Gemini.
-          url = "https://api.openai.com/v1/chat/completions"
+          # Using Google Gemini API format
+          url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={api_key}"
           headers = {
-              "Content-Type": "application/json",
-              "Authorization": f"Bearer {api_key}"
+              "Content-Type": "application/json"
           }
           data = {
-              "model": "gpt-4o", # Change this to your preferred model
-              "messages": [
-                  {"role": "system", "content": "You are an expert Rust developer and AI testing assistant."},
-                  {"role": "user", "content": prompt}
-              ],
-              "temperature": 0.7
+              "systemInstruction": {
+                  "parts": [{"text": "You are an expert Rust developer and AI testing assistant."}]
+              },
+              "contents": [{
+                  "parts": [{"text": prompt}]
+              }],
+              "generationConfig": {
+                  "temperature": 0.7
+              }
           }
           
           req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers)
@@ -82,7 +83,7 @@ jobs:
               print("Calling LLM API...")
               with urllib.request.urlopen(req) as response:
                   result = json.loads(response.read().decode("utf-8"))
-                  llm_response = result["choices"][0]["message"]["content"]
+                  llm_response = result["candidates"][0]["content"]["parts"][0]["text"]
                   
                   # Save response to a markdown file for the gh CLI to read
                   with open("comment.md", "w") as f:
