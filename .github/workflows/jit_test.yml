@@ -1,0 +1,99 @@
+name: AI JiT Testing PoC
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  jit-test:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to fetch all history and branches for generating the diff
+
+      - name: Extract git diff
+        id: diff
+        run: |
+          # Fetch the base branch so we can compare against it
+          git fetch origin ${{ github.base_ref }}
+          
+          # Generate the diff between the base branch and the current PR head
+          DIFF=$(git diff origin/${{ github.base_ref }}...HEAD)
+          
+          # Safely write the multiline diff to the GITHUB_ENV file
+          DELIMITER=$(openssl rand -hex 8)
+          {
+            echo "PR_DIFF<<$DELIMITER"
+            echo "$DIFF"
+            echo "$DELIMITER"
+          } >> "$GITHUB_ENV"
+
+      - name: Run LLM Script and Comment
+        env:
+          LLM_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          python3 -c '
+          import os
+          import urllib.request
+          import json
+          import subprocess
+          import sys
+
+          api_key = os.environ.get("LLM_API_KEY")
+          diff = os.environ.get("PR_DIFF", "")
+          pr_url = os.environ.get("PR_URL")
+          
+          if not api_key:
+              print("Error: Missing LLM_API_KEY in environment.")
+              sys.exit(1)
+              
+          if not diff.strip():
+              print("No diff found. Skipping.")
+              sys.exit(0)
+
+          prompt = "Analyze this code diff. First, output a mutated version of the changed code that introduces a subtle logic bug. Second, generate a Just-in-Time (JiT) Rust unit test specifically designed to catch this new bug. Keep the output brief and formatted in Markdown.\n\nDiff:\n" + diff
+
+          # Defaulting to OpenAI API format (gpt-4o). 
+          # Modify the URL and JSON payload if you intend to use Claude or Gemini.
+          url = "https://api.openai.com/v1/chat/completions"
+          headers = {
+              "Content-Type": "application/json",
+              "Authorization": f"Bearer {api_key}"
+          }
+          data = {
+              "model": "gpt-4o", # Change this to your preferred model
+              "messages": [
+                  {"role": "system", "content": "You are an expert Rust developer and AI testing assistant."},
+                  {"role": "user", "content": prompt}
+              ],
+              "temperature": 0.7
+          }
+          
+          req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers)
+          try:
+              print("Calling LLM API...")
+              with urllib.request.urlopen(req) as response:
+                  result = json.loads(response.read().decode("utf-8"))
+                  llm_response = result["choices"][0]["message"]["content"]
+                  
+                  # Save response to a markdown file for the gh CLI to read
+                  with open("comment.md", "w") as f:
+                      f.write(llm_response)
+                      
+                  # Post the comment to the Pull Request using GitHub CLI
+                  print("Posting comment to PR...")
+                  subprocess.run(["gh", "pr", "comment", pr_url, "-F", "comment.md"], check=True)
+                  print("Comment posted successfully!")
+                  
+          except Exception as e:
+              print(f"Error calling LLM API or posting comment: {e}")
+              sys.exit(1)
+          '
