@@ -62,7 +62,7 @@ jobs:
           prompt = "Analyze this code diff. First, output a mutated version of the changed code that introduces a subtle logic bug. Second, generate a Just-in-Time (JiT) Rust unit test specifically designed to catch this new bug. Keep the output brief and formatted in Markdown.\n\nDiff:\n" + diff
 
           # Using Google Gemini API format
-          url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={api_key}"
+          url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key.strip()}"
           headers = {
               "Content-Type": "application/json"
           }
