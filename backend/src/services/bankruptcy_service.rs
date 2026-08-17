@@ -68,14 +68,15 @@ impl BankruptcyService {
         match loan {
             Ok(_loan) => {
                 if self.check_for_bankruptcy(user_id).await? {
-                    //set the loan to default
-                    self.loan_service
-                        .set_loan_status(user_id, LoanStatus::DEFAULTED)
-                        .await?;
                     //reset user
                     self.account_management_service
                         .reset_user_balance(user_id)
                         .await?;
+                    //set the loan to default
+                    self.loan_service
+                        .set_loan_status(user_id, LoanStatus::DEFAULTED)
+                        .await?;
+
                     //liquidate portfolio
                     self.portfolio_management_service
                         .clear_portfolio(user_id)
