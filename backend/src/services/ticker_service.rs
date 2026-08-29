@@ -31,22 +31,23 @@ impl TickerService {
         ticker: &str,
     ) -> Result<Ticker, TradeError> {
         debug!("Fetching ticker {} from DB", ticker);
-        let stock = sqlx::query("SELECT * FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1")
-            .bind(ticker)
-            .fetch_one(&self.db)
-            .await
-            .and_then(|rec| {
-                Ok(Ticker {
-                    ticker: rec.try_get("ticker")?,
-                    date: rec.try_get("date")?,
-                    close: rec.try_get("close")?,
-                    volume: rec.try_get("volume")?,
-                    open: rec.try_get("open")?,
-                    high: rec.try_get("high")?,
-                    low: rec.try_get("low")?,
+        let stock =
+            sqlx::query("SELECT * FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1")
+                .bind(ticker)
+                .fetch_one(&self.db)
+                .await
+                .and_then(|rec| {
+                    Ok(Ticker {
+                        ticker: rec.try_get("ticker")?,
+                        date: rec.try_get("date")?,
+                        close: rec.try_get("close")?,
+                        volume: rec.try_get("volume")?,
+                        open: rec.try_get("open")?,
+                        high: rec.try_get("high")?,
+                        low: rec.try_get("low")?,
+                    })
                 })
-            })
-            .map_err(TradeError::DatabaseError)?;
+                .map_err(TradeError::DatabaseError)?;
         Ok(stock)
     }
 
@@ -56,34 +57,44 @@ impl TickerService {
         timeframe: TimeFrame,
     ) -> Result<Vec<Ticker>, TradeError> {
         let max_date_query = "SELECT MAX(date) FROM stock_prices WHERE ticker = $1";
-        let mut limit_date: chrono::DateTime<Utc> = sqlx::query(max_date_query)
+        let max_date: chrono::DateTime<Utc> = sqlx::query(max_date_query)
             .bind(ticker)
             .fetch_one(&self.db)
             .await
             .and_then(|row| row.try_get(0))
             .unwrap_or_else(|_| chrono::Utc::now());
 
-        match timeframe {
+        let limit_date = match timeframe {
+            TimeFrame::Day => max_date - chrono::Duration::days(1),
+            TimeFrame::Month => max_date - chrono::Duration::days(30),
+            TimeFrame::HalfYear => max_date - chrono::Duration::days(180),
+            TimeFrame::Year => max_date - chrono::Duration::days(365),
+            TimeFrame::FiveYear => max_date - chrono::Duration::days(5 * 365),
+            TimeFrame::AllYears => chrono::DateTime::from_timestamp(0, 0).unwrap(),
+        };
+
+        let query = match timeframe {
             TimeFrame::Day => {
-                limit_date -= chrono::Duration::days(1);
+                "SELECT ticker, date, close, volume, open, high, low \
+                 FROM stock_prices \
+                 WHERE ticker = $1 AND date >= $2 \
+                 ORDER BY date ASC"
             }
-            TimeFrame::Month => {
-                limit_date -= chrono::Duration::days(30);
+            _ => {
+                "SELECT \
+                    ticker, \
+                    DATE_TRUNC('day', date) AS date, \
+                    (ARRAY_AGG(open ORDER BY date ASC))[1] AS open, \
+                    MAX(high) AS high, \
+                    MIN(low) AS low, \
+                    (ARRAY_AGG(close ORDER BY date DESC))[1] AS close, \
+                    CAST(SUM(volume) AS BIGINT) AS volume \
+                 FROM stock_prices \
+                 WHERE ticker = $1 AND date >= $2 \
+                 GROUP BY ticker, DATE_TRUNC('day', date) \
+                 ORDER BY date ASC"
             }
-            TimeFrame::HalfYear => {
-                limit_date -= chrono::Duration::days(180);
-            }
-            TimeFrame::Year => {
-                limit_date -= chrono::Duration::days(365);
-            }
-            TimeFrame::FiveYear => {
-                limit_date -= chrono::Duration::days(5 * 365);
-            }
-            TimeFrame::AllYears => {
-                limit_date = chrono::DateTime::from_timestamp(0, 0).unwrap();
-            }
-        }
-        let query = "SELECT * FROM stock_prices WHERE ticker = $1 AND date >= $2 ORDER BY date ASC";
+        };
 
         let stocks = sqlx::query(query)
             .bind(ticker)
@@ -124,9 +135,13 @@ impl TickerService {
     }
 
     pub async fn get_ticker_summary(&self, symbol: &str) -> Result<TickerSummary, TradeError> {
-        let company = get_company_by_symbol(symbol).ok_or(TradeError::TickerError(TickerError::InvalidSymbol(symbol.to_string())))?;
+        let company = get_company_by_symbol(symbol).ok_or(TradeError::TickerError(
+            TickerError::InvalidSymbol(symbol.to_string()),
+        ))?;
 
-        let latest = self.fetch_latest_price_ticker_from_db(company.symbol).await?;
+        let latest = self
+            .fetch_latest_price_ticker_from_db(company.symbol)
+            .await?;
 
         // Try to get previous price for 24h calculation
         let prev_record = sqlx::query(
@@ -138,8 +153,11 @@ impl TickerService {
         .await
         .map_err(TradeError::DatabaseError)?;
 
-        let (open_price, day_high, day_low, day_volume, prev_close) = if let Some(row) = prev_record {
-            let prev_close: BigDecimal = row.try_get("close").unwrap_or_else(|_| latest.close.clone());
+        let (open_price, day_high, day_low, day_volume, prev_close) = if let Some(row) = prev_record
+        {
+            let prev_close: BigDecimal = row
+                .try_get("close")
+                .unwrap_or_else(|_| latest.close.clone());
             let open: BigDecimal = latest.open.clone().unwrap_or_else(|| latest.close.clone());
             let high: BigDecimal = latest.high.clone().unwrap_or_else(|| latest.close.clone());
             let low: BigDecimal = latest.low.clone().unwrap_or_else(|| latest.close.clone());
