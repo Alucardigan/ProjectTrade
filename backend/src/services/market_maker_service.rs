@@ -1,17 +1,22 @@
 use bigdecimal::BigDecimal;
-use chrono::{Timelike, Utc};
+use chrono::Utc;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
+use rand::Rng;
 use rand_distr::{Distribution, Normal};
 use sqlx::{PgPool, Row};
+use std::{collections::HashMap, sync::Arc};
 use tokio::{sync::RwLock, task::JoinHandle};
 use tracing::info;
 use uuid::Uuid;
 
 use crate::{
     models::{errors::trade_error::TradeError, order::OrderType},
-    services::{order_management_service::OrderManagementService, ticker_service::TickerService},
+    services::{
+        order_management_service::OrderManagementService,
+        synthetic_data::{get_company_by_symbol, get_universe_symbols},
+        ticker_service::TickerService,
+    },
 };
-use std::{collections::HashMap, sync::Arc};
 
 pub struct MarketMakerService {
     db: PgPool,
@@ -25,8 +30,8 @@ pub struct MarketMakerService {
 impl MarketMakerService {
     const TIME_STEP: u32 = 1440;
     const STOCK_QUANTITY: u32 = 100;
-    const SPREAD_PERCENTAGE: f64 = 0.005;
-    const POSTING_FREQUENCY_SECS: u64 = 60;
+    const SPREAD_PERCENTAGE: f64 = 0.005; // 0.5% bid-ask spread
+    const POSTING_FREQUENCY_SECS: u64 = 5;
 
     pub fn new(
         db: PgPool,
@@ -35,11 +40,17 @@ impl MarketMakerService {
         acceptable_tickers: Vec<String>,
         user_id: Uuid,
     ) -> Self {
+        let tickers = if acceptable_tickers.is_empty() {
+            get_universe_symbols()
+        } else {
+            acceptable_tickers
+        };
+
         Self {
             db,
             ticker_service,
             order_management_service,
-            acceptable_tickers,
+            acceptable_tickers: tickers,
             ticker_price_paths: RwLock::new(HashMap::new()),
             market_maker_user_id: user_id,
         }
@@ -47,35 +58,27 @@ impl MarketMakerService {
 
     pub async fn get_current_price(
         &self,
-        ticker: &String,
+        ticker: &str,
     ) -> Result<Option<BigDecimal>, TradeError> {
-        info!("get current price");
         let current_price_opt = sqlx::query(
             "SELECT close FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1",
         )
         .bind(ticker)
         .fetch_optional(&self.db)
-        .await?;
+        .await
+        .map_err(TradeError::DatabaseError)?;
 
         if let Some(row) = current_price_opt {
-            let price: BigDecimal = row.try_get("close")?;
-            info!("Current price {} for ticker {}", price, ticker);
+            let price: BigDecimal = row.try_get("close").unwrap_or_else(|_| BigDecimal::from(100));
             Ok(Some(price))
         } else {
-            info!("No current price found for ticker {}", ticker);
             Ok(None)
         }
     }
 
-    /**everyday we intialise the market
-     * for each ticker, fetch opening price via api
-     * fetch close price from db
-     * generate price path using brownian motion
-     * initialise the worker thread to use the price path to place orders
-     **/
     pub async fn initialise_market(&self) -> Result<(), TradeError> {
         info!(
-            "Initialising market for tickers : {:?}",
+            "Initialising synthetic market for tickers: {:?}",
             self.acceptable_tickers
         );
         for ticker in &self.acceptable_tickers {
@@ -83,155 +86,203 @@ impl MarketMakerService {
             let mut ticker_price_paths = self.ticker_price_paths.write().await;
             ticker_price_paths.insert(ticker.clone(), market_orders);
         }
-        // self.spawn_worker_thread().await;
         Ok(())
     }
+
     pub async fn generate_market_orders(
         &self,
         ticker: String,
     ) -> Result<Vec<BigDecimal>, TradeError> {
-        let market_price = self
-            .ticker_service
-            .fetch_latest_price_ticker_from_db(&ticker)
-            .await?;
-        let current_price_opt = self.get_current_price(&ticker).await?;
-        let start_price = match current_price_opt {
-            Some(price) => price,
-            None => market_price.close.clone(),
+        let latest_price_opt = self.get_current_price(&ticker).await?;
+        let base_price = get_company_by_symbol(&ticker)
+            .map(|c| c.base_price)
+            .unwrap_or(150.0);
+
+        let start_price = match latest_price_opt {
+            Some(price) => price.to_f64().unwrap_or(base_price),
+            None => base_price,
         };
 
-        let price_path = Self::brownian_motion(
-            ToPrimitive::to_f64(&market_price.close).unwrap_or(0.0),
-            ToPrimitive::to_f64(&start_price).unwrap_or(0.0),
-            Self::TIME_STEP,
-        );
+        let target_price = start_price * (1.0 + (rand::random::<f64>() - 0.5) * 0.02);
+        let price_path = Self::brownian_motion(target_price, start_price, Self::TIME_STEP);
         Ok(price_path)
     }
 
     pub async fn spawn_price_engine(&self) -> JoinHandle<Result<(), TradeError>> {
-        info!("Starting price engine thread");
-        let order_management_service_clone = self.order_management_service.clone();
-        let ticker_service_clone = self.ticker_service.clone();
+        info!("Starting synthetic price engine background worker");
+        let db = self.db.clone();
         let acceptable_tickers = self.acceptable_tickers.clone();
-        let user_id = self.market_maker_user_id;
-
-        // We clone the Arc to move it into the background thread so it can constantly read live states
-        let price_paths_ref = Arc::new(self.ticker_price_paths.read().await.clone());
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
                 Self::POSTING_FREQUENCY_SECS,
             ));
+
             loop {
                 interval.tick().await;
-                let current_time = Utc::now();
-                let current_time_index =
-                    (current_time.time().hour() * 60 + current_time.time().minute()) as usize;
+                let now = Utc::now();
 
                 for ticker in &acceptable_tickers {
-                    let default_value = BigDecimal::from(120);
-
-                    let target_price = match price_paths_ref.get(ticker) {
-                        Some(paths) => paths.get(current_time_index).unwrap_or(&default_value),
-                        None => {
-                            tracing::warn!("No price path found for ticker {}", ticker);
-                            &default_value
-                        }
+                    let company_opt = get_company_by_symbol(ticker);
+                    let (volatility, drift) = match company_opt {
+                        Some(c) => (c.volatility, c.drift),
+                        None => (0.25, 0.08),
                     };
-                    let current_price = ticker_service_clone
-                        .fetch_latest_price_ticker_from_db(ticker)
-                        .await?
-                        .close;
-                    if (&current_price - target_price).abs() < BigDecimal::from(1) {
-                        info!(
-                            "Ticker:{} is at it's target price : {}",
-                            ticker, target_price
-                        );
-                        continue;
-                    }
-                    let mut current_price_clone = current_price.clone();
-                    while (&current_price_clone - target_price).abs() > BigDecimal::from(1) {
-                        if &current_price_clone > target_price {
-                            current_price_clone -= BigDecimal::from(1);
-                            let _rec = order_management_service_clone.place_order(
-                                user_id,
-                                ticker,
-                                BigDecimal::from(Self::STOCK_QUANTITY),
-                                OrderType::Sell,
-                                BigDecimal::zero(),
-                                Some(current_price_clone.clone()),
-                            );
-                        } else {
-                            current_price_clone += BigDecimal::from(1);
-                            let _rec = order_management_service_clone.place_order(
-                                user_id,
-                                ticker,
-                                BigDecimal::from(Self::STOCK_QUANTITY),
-                                OrderType::Buy,
-                                BigDecimal::zero(),
-                                Some(current_price_clone.clone()),
-                            );
-                        }
+
+                    // Fetch latest recorded candle
+                    let latest_row = sqlx::query(
+                        "SELECT close, open, high, low, volume FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1"
+                    )
+                    .bind(ticker)
+                    .fetch_optional(&db)
+                    .await;
+
+                    if let Ok(Some(row)) = latest_row {
+                        let prev_close_bd: BigDecimal = row.try_get("close").unwrap_or_else(|_| BigDecimal::from(100));
+                        let prev_close = prev_close_bd.to_f64().unwrap_or(100.0);
+
+                        // Stochastic step for 5 seconds (calculate without holding ThreadRng across await)
+                        let (close, open, high, low, volume) = {
+                            let mut rng = rand::thread_rng();
+                            let dt = 5.0 / (252.0 * 24.0 * 3600.0);
+                            let normal = Normal::new(
+                                (drift - 0.5 * volatility.powi(2)) * dt,
+                                volatility * dt.sqrt(),
+                            )
+                            .unwrap();
+
+                            let shock = normal.sample(&mut rng);
+                            let new_price_f64 = ((prev_close * shock.exp()) * 100.0).round() / 100.0;
+                            let new_price_f64 = new_price_f64.max(1.0);
+
+                            let open = prev_close;
+                            let close = new_price_f64;
+                            let high = open.max(close) * (1.0 + rng.gen::<f64>() * 0.001);
+                            let low = (open.min(close) * (1.0 - rng.gen::<f64>() * 0.001)).max(0.5);
+                            let volume = 1000 + rng.gen_range(100..5000);
+                            (close, open, high, low, volume)
+                        };
+
+                        let close_bd = BigDecimal::from_f64(close).unwrap_or(prev_close_bd);
+                        let open_bd = BigDecimal::from_f64(open).unwrap();
+                        let high_bd = BigDecimal::from_f64(high).unwrap();
+                        let low_bd = BigDecimal::from_f64(low).unwrap();
+
+                        // Update or insert latest live tick into DB
+                        let _ = sqlx::query(
+                            "INSERT INTO stock_prices (ticker, date, close, volume, open, high, low) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (ticker, date) DO UPDATE SET close = EXCLUDED.close, high = GREATEST(stock_prices.high, EXCLUDED.high), low = LEAST(stock_prices.low, EXCLUDED.low), volume = stock_prices.volume + EXCLUDED.volume"
+                        )
+                        .bind(ticker)
+                        .bind(now)
+                        .bind(close_bd)
+                        .bind(volume)
+                        .bind(open_bd)
+                        .bind(high_bd)
+                        .bind(low_bd)
+                        .execute(&db)
+                        .await;
                     }
                 }
             }
         })
     }
+
     pub async fn spawn_market_maker_thread(&self) -> JoinHandle<Result<(), TradeError>> {
-        info!("Starting market maker thread");
+        info!("Starting synthetic market maker background liquidity worker");
         let order_management_service = self.order_management_service.clone();
         let acceptable_tickers = self.acceptable_tickers.clone();
         let user_id = self.market_maker_user_id;
-
-        // We clone the Arc to move it into the background thread so it can constantly read live states
-        let price_paths_ref = Arc::new(self.ticker_price_paths.read().await.clone());
+        let db = self.db.clone();
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(3));
             loop {
                 interval.tick().await;
 
-                let current_time = Utc::now();
-                let current_time_index =
-                    (current_time.time().hour() * 60 + current_time.time().minute()) as usize;
+                // 1. Maintain bid/ask quotes around fair value for all synthetic stocks
+                for ticker in &acceptable_tickers {
+                    let latest_price_opt = sqlx::query(
+                        "SELECT close FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1",
+                    )
+                    .bind(ticker)
+                    .fetch_optional(&db)
+                    .await;
 
-                let default_value = BigDecimal::from(120);
+                    if let Ok(Some(row)) = latest_price_opt {
+                        let fair_price: BigDecimal = row.try_get("close").unwrap_or_else(|_| BigDecimal::from(100));
+                        let fair_f64 = fair_price.to_f64().unwrap_or(100.0);
 
+                        let bid_f64 = ((fair_f64 * (1.0 - Self::SPREAD_PERCENTAGE)) * 100.0).round() / 100.0;
+                        let ask_f64 = ((fair_f64 * (1.0 + Self::SPREAD_PERCENTAGE)) * 100.0).round() / 100.0;
+
+                        let bid_price = BigDecimal::from_f64(bid_f64).unwrap_or_else(|| fair_price.clone());
+                        let ask_price = BigDecimal::from_f64(ask_f64).unwrap_or_else(|| fair_price.clone());
+
+                        // Place Market Maker Bid (Buy)
+                        let _ = order_management_service
+                            .place_order(
+                                user_id,
+                                ticker,
+                                BigDecimal::from(Self::STOCK_QUANTITY),
+                                OrderType::Buy,
+                                BigDecimal::zero(),
+                                Some(bid_price),
+                            )
+                            .await;
+
+                        // Place Market Maker Ask (Sell)
+                        let _ = order_management_service
+                            .place_order(
+                                user_id,
+                                ticker,
+                                BigDecimal::from(Self::STOCK_QUANTITY),
+                                OrderType::Sell,
+                                BigDecimal::zero(),
+                                Some(ask_price),
+                            )
+                            .await;
+                    }
+                }
+
+                // 2. Fill matching user open orders
                 let open_orders = order_management_service
                     .order_matchbook_service
                     .get_open_orders()
                     .await;
 
                 for order in open_orders {
-                    let target_price = match price_paths_ref.get(&order.ticker) {
-                        Some(paths) => paths.get(current_time_index).unwrap_or(&default_value),
-                        None => &default_value,
-                    };
+                    if order.user_id == user_id {
+                        continue;
+                    }
 
-                    // Define acceptable spread (e.g. within 1% of the target price)
-                    let max_deviation = target_price.clone()
-                        * BigDecimal::from_f64(0.01).unwrap_or(BigDecimal::zero());
-                    let deviation = (&order.price_per_share - target_price).abs();
+                    let current_price_row = sqlx::query(
+                        "SELECT close FROM stock_prices WHERE ticker = $1 ORDER BY date DESC LIMIT 1",
+                    )
+                    .bind(&order.ticker)
+                    .fetch_optional(&db)
+                    .await;
 
-                    // If the user's price is favorable, fulfill it!
-                    if deviation <= max_deviation {
-                        let counter_order_type = match order.order_type {
-                            OrderType::Buy => OrderType::Sell,
-                            OrderType::Sell => OrderType::Buy,
-                        };
+                    if let Ok(Some(row)) = current_price_row {
+                        let target_price: BigDecimal = row.try_get("close").unwrap_or_else(|_| BigDecimal::from(100));
+                        let max_deviation = &target_price * BigDecimal::from_f64(0.02).unwrap_or_default();
+                        let deviation = (&order.price_per_share - &target_price).abs();
 
-                        if let Err(e) = order_management_service
-                            .place_order(
-                                user_id,
-                                &order.ticker,
-                                order.quantity.clone(),
-                                counter_order_type,
-                                BigDecimal::zero(),
-                                Some(order.price_per_share.clone()),
-                            )
-                            .await
-                        {
-                            tracing::error!("Market Maker failed to place counter order: {:?}", e);
+                        if deviation <= max_deviation {
+                            let counter_order_type = match order.order_type {
+                                OrderType::Buy => OrderType::Sell,
+                                OrderType::Sell => OrderType::Buy,
+                            };
+
+                            let _ = order_management_service
+                                .place_order(
+                                    user_id,
+                                    &order.ticker,
+                                    order.quantity.clone(),
+                                    counter_order_type,
+                                    BigDecimal::zero(),
+                                    Some(order.price_per_share.clone()),
+                                )
+                                .await;
                         }
                     }
                 }
@@ -263,15 +314,11 @@ impl MarketMakerService {
         let mut result_path = Vec::with_capacity(time_step as usize);
         for i in 1..=time_step {
             let raw_log = log_path[i as usize];
-
-            // Interpolate the error removal
-            // At i=0, we remove 0% of error. At i=N, we remove 100% of error.
             let progress = i as f64 / time_step as f64;
             let bridged_log = raw_log - (total_error * progress);
 
             let price_f64 = bridged_log.exp();
             let price_bigdecimal: BigDecimal = FromPrimitive::from_f64(price_f64).unwrap();
-
             result_path.push(price_bigdecimal);
         }
         result_path

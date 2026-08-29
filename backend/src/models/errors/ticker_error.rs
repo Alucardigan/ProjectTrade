@@ -5,25 +5,18 @@ use thiserror::Error;
 pub enum TickerError {
     #[error("Invalid symbol: {0}")]
     InvalidSymbol(String),
-    #[error("API rate limit exceeded")]
-    RateLimitExceeded,
+    #[error("Ticker not found")]
+    NotFound,
     #[error("API error: {0}")]
     ApiError(String),
-    #[error("alpha_vantage error: {0}")]
-    AlphaVantageError(#[from] alpha_vantage::error::Error),
 }
 
 impl From<TickerError> for ApiError {
     fn from(error: TickerError) -> Self {
         match error {
             TickerError::InvalidSymbol(s) => ApiError::BadRequest(format!("Invalid symbol: {}", s)),
-            TickerError::RateLimitExceeded => {
-                ApiError::InternalServerError("Rate limit exceeded".to_string())
-            }
+            TickerError::NotFound => ApiError::NotFound("Ticker not found".to_string()),
             TickerError::ApiError(s) => ApiError::InternalServerError(format!("API error: {}", s)),
-            TickerError::AlphaVantageError(s) => {
-                ApiError::InternalServerError(format!("API error: {}", s.to_string()))
-            }
         }
     }
 }

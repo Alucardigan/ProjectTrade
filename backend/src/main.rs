@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
         Uuid::parse_str(&env::var("marketmaker.user_id").expect("marketmaker.user_id NOT FOUND"))
             .expect("marketmaker.user_id NOT FOUND");
 
-    let app_state = AppState::new(_db, "mock", system_user_id);
+    let app_state = AppState::new(_db, system_user_id);
     let _task_handles = app_state.start_background_processes().await;
     let app = create_router(app_state.clone()).with_state(app_state);
     let listener = tokio::net::TcpListener::bind("localhost:3000").await?;

@@ -28,7 +28,7 @@ async fn test_add_order_and_get_best_sale() {
     // We can try to use `sqlx::PgPool::connect_lazy` which doesn't check connection immediately.
 
     let db = PgPool::connect_lazy("postgres://localhost/dummy").unwrap();
-    let ticker_service = std::sync::Arc::new(backend::services::ticker_service::TickerService::new("mock", db.clone()));
+    let ticker_service = std::sync::Arc::new(backend::services::ticker_service::TickerService::new(db.clone()));
     let account_service = std::sync::Arc::new(backend::services::account_management_service::AccountManagementService::new(db.clone()));
     let portfolio_service = std::sync::Arc::new(backend::services::portfolio_management_service::PortfolioManagementService::new(db.clone(), ticker_service.clone()));
     let trade_service = std::sync::Arc::new(backend::services::trade_service::TradeService::new(db.clone(), ticker_service.clone(), account_service.clone(), portfolio_service.clone()));
@@ -63,7 +63,7 @@ async fn test_add_order_and_get_best_sale() {
 #[tokio::test]
 async fn test_empty_book() {
     let db = PgPool::connect_lazy("postgres://localhost/dummy").unwrap();
-    let ticker_service = std::sync::Arc::new(backend::services::ticker_service::TickerService::new("mock", db.clone()));
+    let ticker_service = std::sync::Arc::new(backend::services::ticker_service::TickerService::new(db.clone()));
     let account_service = std::sync::Arc::new(backend::services::account_management_service::AccountManagementService::new(db.clone()));
     let portfolio_service = std::sync::Arc::new(backend::services::portfolio_management_service::PortfolioManagementService::new(db.clone(), ticker_service.clone()));
     let trade_service = std::sync::Arc::new(backend::services::trade_service::TradeService::new(db.clone(), ticker_service.clone(), account_service.clone(), portfolio_service.clone()));

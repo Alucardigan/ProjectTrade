@@ -25,7 +25,7 @@ async fn setup_db() -> PgPool {
 async fn test_order_placement() {
     let pool = setup_db().await;
     let account_service = Arc::new(AccountManagementService::new(pool.clone()));
-    let ticker_service = Arc::new(TickerService::new("mock", pool.clone()));
+    let ticker_service = Arc::new(TickerService::new(pool.clone()));
     let portfolio_service = Arc::new(PortfolioManagementService::new(
         pool.clone(),
         ticker_service.clone(),

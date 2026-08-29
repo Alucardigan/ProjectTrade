@@ -7,10 +7,10 @@ import { Card } from '@/components/retroui/Card';
 import { Text } from '@/components/retroui/Text';
 import { Button } from '@/components/retroui/Button';
 import { Badge } from '@/components/retroui/Badge';
-import { fetchTickerHistory, fetchTicker } from '@/api/ticker';
+import { fetchTickerHistory, fetchTickerDetails } from '@/api/ticker';
 import { placeOrder } from '@/api/orderManagement';
 import { OrderType } from '@/types/OrderType';
-import { TrendingUp, AlertCircle, ArrowRight, Activity, TrendingDown } from 'lucide-react';
+import { TrendingUp, AlertCircle, ArrowRight, Activity, TrendingDown, Building } from 'lucide-react';
 
 const TIMEFRAMES = [
     { label: '1D', value: 'day' },
@@ -71,10 +71,11 @@ const StockPage = () => {
     const [timeframe, setTimeframe] = useState('month');
     const [quantity, setQuantity] = useState("");
 
-    const { data: tickerData } = useQuery({
-        queryKey: ['ticker', ticker],
-        queryFn: () => fetchTicker(ticker || ''),
-        enabled: !!ticker
+    const { data: details } = useQuery({
+        queryKey: ['tickerDetails', ticker],
+        queryFn: () => fetchTickerDetails(ticker || ''),
+        enabled: !!ticker,
+        refetchInterval: 5000,
     });
 
     const { data: history, isLoading } = useQuery({
@@ -110,9 +111,8 @@ const StockPage = () => {
         };
     }) || [];
 
-    const currentPrice = tickerData ? Number(tickerData.close) : 0;
-    const isPositive = chartData.length >= 2 ? chartData[chartData.length - 1].close >= chartData[0].close : true;
-    const todayData = chartData.length > 0 ? chartData[chartData.length - 1] : null;
+    const currentPrice = details ? Number(details.current_price) : (chartData.length > 0 ? chartData[chartData.length - 1].close : 0);
+    const isPositive = details ? details.is_positive : (chartData.length >= 2 ? chartData[chartData.length - 1].close >= chartData[0].close : true);
     const totalCost = currentPrice && quantity ? currentPrice * Number(quantity) : 0;
 
     const handleBuy = () => {
@@ -137,15 +137,27 @@ const StockPage = () => {
                     ← Back
                 </Button>
 
-                <div className="flex items-end gap-4 mb-8">
-                    <Text as="h1" className="text-5xl font-black text-gray-900 tracking-tight">{ticker}</Text>
-                    <div className="flex items-center gap-2 mb-1">
-                        <Text className="text-3xl font-bold text-gray-900">
+                <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
+                    <div>
+                        <div className="flex items-center gap-3 mb-1">
+                            <Text as="h1" className="text-5xl font-black text-gray-900 tracking-tight">{ticker}</Text>
+                            {details && (
+                                <Badge variant="retro" className="text-sm border-2 border-black bg-blue-100 font-bold">
+                                    {details.sector}
+                                </Badge>
+                            )}
+                        </div>
+                        {details && (
+                            <Text className="text-lg text-gray-600 font-bold">{details.name}</Text>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Text className="text-4xl font-black text-gray-900 font-mono">
                             ${currentPrice.toFixed(2)}
                         </Text>
-                        <Badge variant={isPositive ? "success" : "destructive"} className="border-2 border-black ml-2 py-1">
-                            {isPositive ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-                            Live
+                        <Badge variant={isPositive ? "success" : "destructive"} className="border-2 border-black py-1.5 px-3 text-sm font-bold">
+                            {isPositive ? <TrendingUp className="w-4 h-4 mr-1 inline" /> : <TrendingDown className="w-4 h-4 mr-1 inline" />}
+                            {details ? `${details.is_positive ? '+' : ''}${details.change_percent}%` : 'Live'}
                         </Badge>
                     </div>
                 </div>
@@ -154,7 +166,7 @@ const StockPage = () => {
                     {/* LEFT COLUMN: Chart & Stats */}
                     <div className="lg:col-span-2 space-y-8">
                         {/* Chart Card */}
-                        <Card className="bg-white/80 backdrop-blur-md rounded-xl border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-6">
+                        <Card className="bg-white rounded-xl border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-6">
                             <div className="flex justify-between items-center flex-wrap gap-4">
                                 <Text className="text-2xl font-black">Performance</Text>
                                 <div className="flex bg-gray-100 p-1 rounded-lg border-2 border-black overflow-x-auto">
@@ -196,31 +208,40 @@ const StockPage = () => {
                             </div>
                         </Card>
 
-                        {/* Stats Grid */}
-                        {todayData && (
-                            <div>
+                        {/* Company Profile Card */}
+                        {details && (
+                            <Card className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                                <Text as="h3" className="text-xl font-black text-gray-900 mb-3 flex items-center gap-2">
+                                    <Building className="w-5 h-5" /> About {details.name}
+                                </Text>
+                                <Text className="text-gray-600 font-medium leading-relaxed mb-6">
+                                    {details.description}
+                                </Text>
+
                                 <Text as="h3" className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                                     <Activity className="w-5 h-5" /> Key Statistics
                                 </Text>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <Card className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 text-center">
-                                        <Text className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Open</Text>
-                                        <Text className="text-2xl font-black text-gray-900">${todayData.open.toFixed(2)}</Text>
+                                    <Card className="bg-gray-50 border-2 border-black p-4 text-center">
+                                        <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Open</Text>
+                                        <Text className="text-xl font-black text-gray-900 font-mono">${Number(details.open_price).toFixed(2)}</Text>
                                     </Card>
-                                    <Card className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 text-center">
-                                        <Text className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">High</Text>
-                                        <Text className="text-2xl font-black text-green-600">${todayData.high.toFixed(2)}</Text>
+                                    <Card className="bg-gray-50 border-2 border-black p-4 text-center">
+                                        <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Day High</Text>
+                                        <Text className="text-xl font-black text-green-600 font-mono">${Number(details.day_high).toFixed(2)}</Text>
                                     </Card>
-                                    <Card className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 text-center">
-                                        <Text className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Low</Text>
-                                        <Text className="text-2xl font-black text-red-600">${todayData.low.toFixed(2)}</Text>
+                                    <Card className="bg-gray-50 border-2 border-black p-4 text-center">
+                                        <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Day Low</Text>
+                                        <Text className="text-xl font-black text-red-600 font-mono">${Number(details.day_low).toFixed(2)}</Text>
                                     </Card>
-                                    <Card className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 text-center">
-                                        <Text className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Close</Text>
-                                        <Text className="text-2xl font-black text-gray-900">${todayData.close.toFixed(2)}</Text>
+                                    <Card className="bg-gray-50 border-2 border-black p-4 text-center">
+                                        <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Market Cap</Text>
+                                        <Text className="text-xl font-black text-blue-600 font-mono">
+                                            ${(Number(details.market_cap) / 1_000_000).toFixed(1)}M
+                                        </Text>
                                     </Card>
                                 </div>
-                            </div>
+                            </Card>
                         )}
                     </div>
 
@@ -245,12 +266,12 @@ const StockPage = () => {
                                 <div className="bg-blue-50 p-4 rounded border-2 border-black border-dashed space-y-3">
                                     <div className="flex justify-between items-center">
                                         <Text className="text-gray-600 font-bold">Market Price</Text>
-                                        <Text className="font-bold">${currentPrice.toFixed(2)}</Text>
+                                        <Text className="font-bold font-mono">${currentPrice.toFixed(2)}</Text>
                                     </div>
                                     <div className="border-t-2 border-black border-dashed"></div>
                                     <div className="flex justify-between items-end">
                                         <Text className="font-bold uppercase">Total Cost</Text>
-                                        <Text className="text-2xl font-black text-blue-600">
+                                        <Text className="text-2xl font-black text-blue-600 font-mono">
                                             ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </Text>
                                     </div>
@@ -261,7 +282,7 @@ const StockPage = () => {
                                     disabled={!quantity || Number(quantity) <= 0 || mutation.isPending}
                                     className="w-full py-6 text-xl bg-green-500 hover:bg-green-600 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {mutation.isPending ? "Processing..." : (
+                                    {mutation.isPending ? "Executing Order..." : (
                                         <span className="flex items-center justify-center gap-2">
                                             Buy Asset <ArrowRight className="w-6 h-6" />
                                         </span>

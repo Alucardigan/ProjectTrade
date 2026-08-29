@@ -18,19 +18,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
-name = "alpha_vantage"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f3e66e01dfb9e632cc627eecf11876ea9f43344261fec42a9593b4ae95216c2"
-dependencies = [
- "async-trait",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -160,7 +147,6 @@ dependencies = [
 name = "backend"
 version = "0.1.0"
 dependencies = [
- "alpha_vantage",
  "anyhow",
  "axum",
  "axum-extra",

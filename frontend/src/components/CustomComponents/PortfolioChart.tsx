@@ -27,7 +27,6 @@ export const PortfolioChart = () => {
     : true;
 
   const color = isUp ? '#10b981' : '#ef4444';
-  const gradientId = `colorGradient_${isUp ? 'up' : 'down'}`;
 
   // Format data for recharts
   let chartData = history?.map((d: any) => ({

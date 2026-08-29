@@ -6,6 +6,7 @@ use crate::services::market_maker_service;
 use crate::services::order_management_service::OrderManagementService;
 use crate::services::order_matchbook_service::{self, OrderMatchbookService};
 use crate::services::portfolio_management_service::PortfolioManagementService;
+use crate::services::synthetic_data::{get_universe_symbols, seed_synthetic_data_if_needed};
 use crate::services::ticker_service::TickerService;
 use crate::services::trade_service::TradeService;
 use crate::services::user_service::UserService;
@@ -16,7 +17,7 @@ use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AppState {
-    system_user_id: Uuid,
+    pub system_user_id: Uuid,
     pub db: PgPool,
     pub user_service: Arc<UserService>,
     pub ticker_service: Arc<TickerService>,
@@ -30,8 +31,8 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(db: PgPool, api_key: &str, system_user_id: Uuid) -> Self {
-        let ticker_service = Arc::new(TickerService::new(api_key, db.clone()));
+    pub fn new(db: PgPool, system_user_id: Uuid) -> Self {
+        let ticker_service = Arc::new(TickerService::new(db.clone()));
         let account_management_service = Arc::new(AccountManagementService::new(db.clone()));
         let authentication_client = Arc::new(AuthorizationClient::new());
         let portfolio_service = Arc::new(PortfolioManagementService::new(
@@ -65,11 +66,13 @@ impl AppState {
             portfolio_service.clone(),
             order_matchbook_service.clone(),
         ));
+
+        let ticker_universe = get_universe_symbols();
         let market_maker_service = Arc::new(market_maker_service::MarketMakerService::new(
             db.clone(),
             ticker_service.clone(),
             order_management_service.clone(),
-            vec!["AAPL".to_string(), "GOOGL".to_string(), "MSFT".to_string()],
+            ticker_universe,
             system_user_id,
         ));
 
@@ -77,6 +80,7 @@ impl AppState {
             db.clone(),
             account_management_service.clone(),
         ));
+
         tracing::info!("App state created & all services are operational");
         Self {
             system_user_id,
@@ -92,13 +96,22 @@ impl AppState {
             market_maker_service,
         }
     }
+
     pub async fn start_background_processes(
         &self,
     ) -> Vec<tokio::task::JoinHandle<Result<(), TradeError>>> {
-        tracing::info!("Starting background processes");
+        tracing::info!("Starting background processes & synthetic market engines");
         let mut handles: Vec<tokio::task::JoinHandle<Result<(), TradeError>>> = Vec::new();
-        let ticker_ids = vec!["AAPL".to_string(), "GOOGL".to_string(), "MSFT".to_string()];
-        info!("Ticker ids: {:?}", ticker_ids);
+
+        // 1. Auto-seed synthetic data if database is uninitialized
+        if let Err(e) = seed_synthetic_data_if_needed(&self.db).await {
+            tracing::error!("Failed to seed synthetic market data: {:?}", e);
+        }
+
+        let ticker_ids = get_universe_symbols();
+        info!("Active synthetic ticker universe: {:?}", ticker_ids);
+
+        // 2. Initialize system user / market maker liquidity accounts
         if let Err(e) = self
             .user_service
             .create_system_user(self.system_user_id, ticker_ids)
@@ -107,11 +120,15 @@ impl AppState {
             tracing::error!("Failed to create system user: {:?}", e);
         }
 
+        // 3. Initialize orderbooks and market maker paths
         let _ = self.order_matchbook_service.initialise_orderbooks().await;
         let _ = self.market_maker_service.initialise_market().await;
 
+        // 4. Spawn background worker threads
         handles.push(self.order_matchbook_service.create_worker_thread());
         handles.push(self.market_maker_service.spawn_price_engine().await);
-        return handles;
+        handles.push(self.market_maker_service.spawn_market_maker_thread().await);
+
+        handles
     }
 }

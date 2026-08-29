@@ -5,10 +5,9 @@ use axum::{
 use backend::app_state::AppState;
 use backend::routes::router::create_router;
 use dotenv::dotenv;
-
 use sqlx::PgPool;
 use std::env;
-use tower::util::ServiceExt; // for `oneshot`
+use tower::util::ServiceExt;
 
 async fn setup_app() -> axum::Router {
     dotenv().ok();
@@ -18,30 +17,43 @@ async fn setup_app() -> axum::Router {
     let pool = match PgPool::connect(&db_url).await {
         Ok(pool) => pool,
         Err(_) => {
-            return create_router(AppState::new(
-                PgPool::connect_lazy(&db_url).unwrap(),
-                "mock",
-                uuid::Uuid::new_v4(),
-            ))
-            .with_state(AppState::new(
-                PgPool::connect_lazy(&db_url).unwrap(),
-                "mock",
-                uuid::Uuid::new_v4(),
-            ))
+            let lazy = PgPool::connect_lazy(&db_url).unwrap();
+            let state = AppState::new(lazy, uuid::Uuid::new_v4());
+            return create_router(state.clone()).with_state(state);
         }
     };
-    let app_state = AppState::new(pool, "mock", uuid::Uuid::new_v4());
+    let app_state = AppState::new(pool, uuid::Uuid::new_v4());
     create_router(app_state.clone()).with_state(app_state)
 }
 
 #[tokio::test]
-async fn test_get_tickers() {
+async fn test_get_all_tickers() {
     let app = setup_app().await;
 
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/tickers/AAPL")
+                .uri("/tickers")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert!(
+        response.status() == StatusCode::OK
+            || response.status() == StatusCode::INTERNAL_SERVER_ERROR
+    );
+}
+
+#[tokio::test]
+async fn test_get_synthetic_ticker() {
+    let app = setup_app().await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/tickers/CYBR")
                 .body(Body::empty())
                 .unwrap(),
         )

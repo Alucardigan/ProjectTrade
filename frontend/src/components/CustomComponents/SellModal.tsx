@@ -36,7 +36,7 @@ export const SellModal = ({ isOpen, onClose, ticker, maxQuantity, currentPrice }
     const handleSell = () => {
         if (!quantity) return;
         mutation.mutate({
-            symbol: ticker,
+            ticker: ticker,
             quantity: Number(quantity),
             order_type: OrderType.Sell,
             price_buffer: 0
